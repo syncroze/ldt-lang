@@ -1,0 +1,56 @@
+/* ldt-lang's own Prism theme — scoped to `.language-ldt` code blocks only.
+   PHP/bash samples elsewhere on the page keep Prism's default "Tomorrow" theme. */
+
+pre.language-ldt,
+code.language-ldt {
+	background: #1e1e24;
+	color: #e6e6e6;
+}
+
+code.language-ldt .token.tag,
+code.language-ldt .token.emit {
+	color: #e6e6e6;
+}
+
+code.language-ldt .token.comment {
+	color: #6b7688;
+	font-style: italic;
+}
+
+code.language-ldt .token.punctuation {
+	color: #9aa5b8;
+}
+
+code.language-ldt .token.keyword {
+	color: #ff6ac1;
+}
+
+code.language-ldt .token.variable {
+	color: #59c2ff;
+}
+
+code.language-ldt .token.sigil {
+	color: #9aa5b8;
+}
+
+code.language-ldt .token.string {
+	color: #f0b100;
+}
+
+code.language-ldt .token.number {
+	color: #00bba7;
+}
+
+code.language-ldt .token.operator {
+	color: #e6e6e6;
+}
+
+code.language-ldt .token.function {
+	color: #7ccf00;
+}
+
+code.language-ldt .token.escape {
+	color: #e6e6e6;
+	font-style: italic;
+	font-weight: normal;
+}
