@@ -50,7 +50,7 @@ Bare `\` escapes don't exist in `[if]`, `[for]`, or `@(...)` — but **inside a
 non-alphanumeric char yields it; before a letter, digit or end-of-line it
 stays literal), and strings may span newlines:
 
-```bbcode
+```
 [if @x == "a]b"]…             quotes hold the special character
 [if @x == "say \"hi\""]…      an escaped quote inside the string
 [if @p == "C:\Users"]…        backslash before a letter is literal
@@ -197,7 +197,7 @@ Escape the closer to include it literally (see §2).
 Because arithmetic is on inside `@(...)`, a hyphen is the subtract operator, so an
 unquoted bareword with a hyphen is parsed as arithmetic and fails. Quote it:
 
-```bbcode
+```
 @(@role == super-admin)      →  error (parsed as super − admin)
 @(@role == "super-admin")    →  ok
 ```
@@ -231,7 +231,7 @@ chain has a `default:`). Everywhere else undefined is a **value**, not an
 error — conditions and loops are the existence tests, so they stay silent by
 design:
 
-```bbcode
+```
 --strict  x@{missing}y        →  error: undefined reference
 --strict  [if @missing]…      →  takes the false branch (no error)
 --strict  [for v in @missing] →  zero iterations (no error)
