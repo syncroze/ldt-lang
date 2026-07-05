@@ -7,19 +7,38 @@ Prism.languages.ldt = {
 		greedy: true,
 		inside: {
 			'punctuation': [/^\[\/?/, /\]$/],
+			'declaration': [
+				{
+					pattern: /^set\s+[A-Za-z_][\w.]*/,
+					inside: {
+						'keyword': /^set/,
+						'variable': /[A-Za-z_][\w.]*/,
+					},
+				},
+				{
+					pattern: /^unset\s+[A-Za-z_][\w.]*(?:\s*,\s*[A-Za-z_][\w.]*)*/,
+					inside: {
+						'keyword': /^unset/,
+						'punctuation': /,/,
+						'variable': /[A-Za-z_][\w.]*/,
+					},
+				},
+				{
+					pattern: /^for\s+[A-Za-z_]\w*(?:\s*,\s*[A-Za-z_]\w*)?(?=\s+in\b)/,
+					inside: {
+						'keyword': /^for/,
+						'punctuation': /,/,
+						'variable': /[A-Za-z_]\w*/,
+					},
+				},
+			],
 			'keyword': [
 				/^\/?(?:if|elseif|else|for|set|unset|break|continue)/,
 				/\b(?:and|or|not|in|to|by|defined|count|contains|starts with|ends with)\b/,
 			],
 			'string': /"(?:\\.|[^"\\])*"/,
 			'operator': /==|!=|<=|>=|[<>=+\-*/%|]/,
-			'variable': [
-				/@[A-Za-z_][\w.]*/,
-				/(?<=\[(?:set|unset)\s)[A-Za-z_][\w.]*/,
-				/(?<=\[unset\b[^\]]*,\s*)[A-Za-z_][\w.]*/,
-				/(?<=\[for\s)[A-Za-z_]\w*(?=\s*(?:,|\s+in\b))/,
-				/(?<=\[for\s[A-Za-z_]\w*\s*,\s*)[A-Za-z_]\w*(?=\s+in\b)/,
-			],
+			'variable': /@[A-Za-z_][\w.]*/,
 			'number': /\b\d+\b/,
 		},
 	},
