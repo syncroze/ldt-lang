@@ -578,7 +578,8 @@ PLANNED = includes, macros, switch/case, custom filters, bool/null literals,
 regex, ternary. DEFERRED = nothing (the audit surface map in TASKS.md is
 fully ticked). 398 tests in `tests/run.php`; examples cover every feature;
 the GitHub Pages site (`docs/index.html`, live at
-https://syncroze.github.io/ldt-lang/docs/) is the single reference doc —
+https://syncroze.github.io/ldt-lang/ — Pages source is the `docs/` folder)
+is the single reference doc —
 `README.md` is now just an intro + link, and `CAVEATS.md` was retired after
 its edge-case sections (quoted values = §4b, etc.) were merged into the
 Pages site's "Caveats" section (the standalone `docs/ldt-lang.html`/`.md`

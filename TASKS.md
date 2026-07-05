@@ -60,7 +60,7 @@ Last updated: 2026-07-05.
   `${}`/`#{}`/`%()` sigils) in HISTORY.md.
 
 ### 22. README + CAVEATS merged into the GitHub Pages doc site ✅
-- `docs/index.html` (the GitHub Pages site, `syncroze.github.io/ldt-lang/docs/`)
+- `docs/index.html` (the GitHub Pages site, `syncroze.github.io/ldt-lang/`)
   is now the complete language reference: every section of `README.md`
   (data model, assignment/interpolation, conditionals, loops, expressions,
   filters, escaping, feeding data in, strict mode, run it, editor support,

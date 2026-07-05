@@ -8,4 +8,4 @@ The engine is a four-stage `Lexer → Trimmer → Parser → Interpreter` pipeli
 with a bracket-tag surface syntax and a **nested** data model.
 
 **Full documentation, syntax reference, and caveats:
-[syncroze.github.io/ldt-lang/docs](https://syncroze.github.io/ldt-lang/docs/)**
+[syncroze.github.io/ldt-lang](https://syncroze.github.io/ldt-lang/)**
