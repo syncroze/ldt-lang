@@ -57,7 +57,7 @@ CLI `bin/ldt` (`--set k=v`, `--json f`, `--strict`, `--tokens`, `--no-trim`).
   rejected and WHY (do not re-propose rejected designs: bare `@` in text,
   regex, ternary, bool/null literals, custom filters, includes, macros).
 - `TASKS.md` — roadmap: Done / Not planned / Deferred.
-- `docs/index.html` (also live at https://syncroze.github.io/ldt-lang/) —
+- `docs/index.html` (also live at https://syncroze.github.io/ldt-lang/docs/) —
   full language reference and every edge case/gotcha (the "Caveats" section).
 - `tests/run.php` — 383 zero-dependency tests; run with `php tests/run.php`.
   Every change must keep this green and all `examples/*.ldt` rendering.
