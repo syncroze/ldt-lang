@@ -1,0 +1,194 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+use Ldtlang\Ldt;
+use Ldtlang\SyntaxError;
+use Ldtlang\Token;
+
+require __DIR__ . '/../autoload.php';
+
+/**
+ * ldt-lang CLI — render .ldt files.
+ *
+ *   ldt <file.ldt>          render a file to stdout
+ *   ldt --set k=v <file>    seed a variable (dotted keys build nested paths)
+ *   ldt --json data.json <f> seed variables from a JSON object
+ *   ldt --strict <file>     error on undefined references
+ *   ldt --tokens <file>     dump the token stream (debugging)
+ *   ldt --no-trim <file>    keep blank lines from standalone directive lines
+ *   ldt -                   render .ldt read from stdin
+ */
+
+$args = array_slice($argv, 1);
+$strict = false;
+$dumpTokens = false;
+$trim = true;
+$file = null;
+$data = [];
+
+try {
+for ($i = 0; $i < count($args); $i++) {
+    $arg = $args[$i];
+    switch ($arg) {
+        case '-h':
+        case '--help':
+            fwrite(STDOUT, usage());
+            exit(0);
+        case '--strict':
+            $strict = true;
+            break;
+        case '--tokens':
+            $dumpTokens = true;
+            break;
+        case '--no-trim':
+            $trim = false;
+            break;
+        case '--set':
+            $pair = $args[++$i] ?? '';
+            assignData($data, $pair);
+            break;
+        case '--json':
+            $data = mergeJson($data, $args[++$i] ?? '');
+            break;
+        default:
+            if ($arg !== '-' && str_starts_with($arg, '-')) {
+                throw new \RuntimeException("unknown option '$arg' (see --help)");
+            }
+            if ($file !== null) {
+                throw new \RuntimeException("unexpected extra argument '$arg' (input file already given: '$file')");
+            }
+            $file = $arg;
+    }
+}
+} catch (\RuntimeException $e) {
+    fwrite(STDERR, "error: {$e->getMessage()}\n");
+    exit(1);
+}
+
+if ($file === null) {
+    fwrite(STDERR, usage());
+    exit(2);
+}
+
+try {
+    $source = stripBom($file === '-'
+        ? (string) stream_get_contents(STDIN)
+        : slurpFile($file));
+
+    if ($dumpTokens) {
+        foreach (Ldt::tokens($source, $file === '-' ? null : $file) as $t) {
+            fwrite(STDOUT, formatToken($t) . "\n");
+        }
+        exit(0);
+    }
+
+    fwrite(STDOUT, Ldt::render($source, $data, $strict, $file === '-' ? null : $file, $trim));
+    exit(0);
+} catch (SyntaxError $e) {
+    fwrite(STDERR, "syntax error: {$e->getMessage()}\n");
+    exit(1);
+} catch (\RuntimeException $e) {
+    fwrite(STDERR, "error: {$e->getMessage()}\n");
+    exit(1);
+}
+
+function slurpFile(string $path): string
+{
+    if (!is_file($path)) {
+        throw new \RuntimeException("file not found: $path");
+    }
+    return (string) file_get_contents($path);
+}
+
+/** A leading UTF-8 BOM is an editor artifact, not template content. */
+function stripBom(string $source): string
+{
+    return str_starts_with($source, "\xEF\xBB\xBF") ? substr($source, 3) : $source;
+}
+
+/**
+ * Apply a `key=value` pair to the data array, mapping a dotted key onto the
+ * nested model (`--set user.first=Ada` → $data['user']['first'] = 'Ada').
+ *
+ * @param array<int|string, mixed> $data
+ */
+function assignData(array &$data, string $pair): void
+{
+    $eq = strpos($pair, '=');
+    if ($eq === false) {
+        throw new \RuntimeException("--set expects key=value, got '$pair'");
+    }
+    $key = substr($pair, 0, $eq);
+    $segments = \Ldtlang\Environment::segmentsOf($key);
+    if ($segments === null) {
+        throw new \RuntimeException("--set key '$key' is not a valid dot-path");
+    }
+    $value = substr($pair, $eq + 1);
+
+    $ref = &$data;
+    $last = array_pop($segments);
+    foreach ($segments as $seg) {
+        if (!isset($ref[$seg]) || !is_array($ref[$seg])) {
+            $ref[$seg] = [];
+        }
+        $ref = &$ref[$seg];
+    }
+    $ref[$last] = $value;
+}
+
+/**
+ * Deep-merge a JSON file's object into the data array (later values win).
+ * Maps merge key by key; a JSON *list* replaces the previous value wholesale,
+ * so overriding ["a","b","c"] with ["x"] yields ["x"], not ["x","b","c"].
+ *
+ * @param array<int|string, mixed> $data
+ * @return array<int|string, mixed>
+ */
+function mergeJson(array $data, string $path): array
+{
+    $json = json_decode(slurpFile($path), true);
+    if (!is_array($json)) {
+        throw new \RuntimeException("--json expects a JSON object in '$path'");
+    }
+    return mergeData($data, $json);
+}
+
+/**
+ * @param array<int|string, mixed> $base
+ * @param array<int|string, mixed> $over
+ * @return array<int|string, mixed>
+ */
+function mergeData(array $base, array $over): array
+{
+    foreach ($over as $key => $value) {
+        $base[$key] = is_array($value) && !array_is_list($value)
+            && is_array($base[$key] ?? null)
+            ? mergeData($base[$key], $value)
+            : $value;
+    }
+    return $base;
+}
+
+function formatToken(Token $t): string
+{
+    return sprintf('%-8s %d:%d  %s', $t->type, $t->line, $t->col, json_encode($t->value));
+}
+
+function usage(): string
+{
+    return <<<TXT
+    ldt-lang — render .ldt templates
+
+    usage:
+      ldt <file.ldt>          render a file to stdout
+      ldt --set k=v <file>     seed a variable (dotted: --set user.first=Ada)
+      ldt --json data.json <f> seed variables from a JSON object
+      ldt --strict <file>      error on undefined references
+      ldt --no-trim <file>     keep blank lines from standalone directive lines
+      ldt --tokens <file>      dump the token stream
+      ldt -                    render .ldt from stdin
+
+    TXT;
+}

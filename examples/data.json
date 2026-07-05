@@ -1,0 +1,8 @@
+{
+  "user": { "name": "Ada Lovelace", "email": "ada@example.com" },
+  "cart": [
+    { "item": "Pen", "qty": 2 },
+    { "item": "Ink", "qty": 1 },
+    { "item": "Pad", "qty": 5 }
+  ]
+}

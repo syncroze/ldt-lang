@@ -1,0 +1,37 @@
+[# ldt-lang expressions — @( expr ) evaluates an expression and emits it.  #]
+[# Inside @( ), references are bare @name and integer arithmetic is on.    #]
+[# (Labels escape the opener as \@( so they print instead of evaluating.)  #]
+
+[# --- arithmetic: + - * (integer) / % , with * / % before + - , and ( ) - #]
+2 + 3       = @(2 + 3)
+10 - 4      = @(10 - 4)
+4 * 5       = @(4 * 5)
+10 / 3      = @(10 / 3)      [# integer division truncates toward zero #]
+10 % 3      = @(10 % 3)
+2 + 3 * 4   = @(2 + 3 * 4)   [# * binds tighter than + #]
+(2 + 3) * 4 = @((2 + 3) * 4)
+-5 + 8      = @(-5 + 8)      [# unary minus #]
+
+[# --- references inside expressions (bare @name) ----------------------- #]
+[set price = 20][set qty = 3]
+Subtotal: @(@price * @qty)
+
+[# --- count @array : array length (undefined → 0, scalar → error) ------- #]
+[set tags. = a][set tags. = b][set tags. = c]
+Tag count: @(count @tags)          [# → 3 #]
+Have tags? [if count @tags > 0]yes[else]no[/if]
+
+[# --- compute-and-store: capture a result into a variable -------------- #]
+[set total = @(@price * @qty + 5)]
+Total (with 5 shipping): @{total}
+
+[# --- a running counter in a loop -------------------------------------- #]
+[set sum = 0]
+Running sum: [for n in 1 to 5][set sum = @(@sum + @n)]@{sum} [/for]
+
+[# --- comparison / logic render as 1 (true) or empty (false) ------------ #]
+[set age = 20]
+Adult flag (@age >= 18): @(@age >= 18)
+
+[# --- a literal @( ) is written with a backslash ----------------------- #]
+literal: \@(1 + 2)

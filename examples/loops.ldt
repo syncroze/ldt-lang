@@ -1,0 +1,41 @@
+[# ldt-lang loops — [for … in …] / [/for] with [break] / [continue] #]
+[# Ranges read as 'a to b', with an optional 'by step'.               #]
+
+[# ranges are inclusive; 'by' sets the step #]
+Count: [for n in 1 to 5]@{n}[/for]
+Evens: [for n in 2 to 10 by 2]@{n} [/for]
+Down:  [for n in 3 to 1]@{n}[/for]
+
+[# dynamic bounds — start, end and step may all be @refs #]
+[set lo = 3][set hi = 9][set st = 3]
+Dynamic: [for n in @lo to @hi by @st]@{n} [/for]
+
+[# iterate an indexed array (one-var = value) #]
+[set fruit. = apple][set fruit. = banana][set fruit. = cherry]
+
+[# inside the header the iterable is a bare @ref (not @{...}); the loop #]
+[# BODY, being text, uses @{f} to interpolate each value.               #]
+Inline: [for f in @fruit]@{f} [/for]
+
+Fruit:
+[for f in @fruit]
+  - @{f}
+[/for]
+
+[# two-var form exposes the key/index #]
+[set price.small = 3][set price.large = 5]
+Prices:
+[for size, amount in @price]
+  @{size} = @{amount}
+[/for]
+
+[# nested arrays: each loop value can itself be a record #]
+[set cart.0.name = Pen][set cart.0.qty = 2]
+[set cart.1.name = Ink][set cart.1.qty = 1]
+Cart:
+[for line in @cart]
+  @{line.qty} x @{line.name}
+[/for]
+
+[# break / continue #]
+First even over 3: [for n in 1 to 9][if @n < 4 or @n > 8][continue][/if][if @n == 6][break][/if]@{n} [/for]

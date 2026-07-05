@@ -1,0 +1,35 @@
+[# ldt-lang conditionals — [if] / [elseif] / [else] / [/if]             #]
+[# Inside a tag a reference is bare @name (the closed @{name} form is    #]
+[# text-only and rejected here); a bareword is an unquoted string        #]
+[# literal, so the @ is what marks "this is a variable".                 #]
+
+[set role = editor]
+[set score = 72]
+
+[# a simple if/elseif/else chain #]
+Role: [if @role == admin]full access[elseif @role == editor]can edit[else]read only[/if]
+
+[# numeric comparison — values that look like numbers compare as numbers #]
+Grade: [if @score >= 90]A[elseif @score >= 70]B[elseif @score >= 50]C[else]F[/if]
+
+[# boolean logic, grouping and 'defined' #]
+[set flag = 1]
+Check: [if defined @role and (@flag or @missing)]ok[else]no[/if]
+
+[# 'not', empty/undefined/zero are falsy #]
+[set empty = ]
+Truthiness: [if not @empty]empty-is-falsy[/if]
+
+[# dot-paths work as references too #]
+[set user.role = admin]
+Nested ref: [if @user.role == admin]is-admin[/if]
+
+[# substring operators: contains / starts with / ends with (case-sensitive) #]
+[set email = ada@example.com][set file = report.pdf]
+Email ok : [if @email contains "@"]yes[/if]
+Is PDF   : [if @file ends with ".pdf"]yes[/if]
+Formal   : [if @user.role starts with "adm"]admin-ish[/if]
+Negated  : [if not @file ends with ".txt"]not-text[/if]
+
+[# nesting and inline embedding both work #]
+Nested: [if @flag][if @score > 50]high[/if][/if]

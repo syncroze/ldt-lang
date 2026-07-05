@@ -1,0 +1,14 @@
+[# ldt-lang data-driven template. Provide a context when rendering:        #]
+[#   php bin/ldt --json examples/data.json examples/data.ldt               #]
+[#   php bin/ldt --set user.name=Ada examples/data.ldt                     #]
+[# Missing/falsy values fall back via the default filter.                  #]
+
+Hello @{user.name | default: "guest"}!
+Contact: @{user.email | default: "no email on file"}
+
+Order (@(count @cart) line[if count @cart > 1]s[/if]):
+[for line in @cart]
+  @{loop.index}/@{loop.count}. @{line.item} x @{line.qty}[if not @loop.last] |[/if]
+[/for]
+
+Shipping: @{shipping | default: "standard"}
