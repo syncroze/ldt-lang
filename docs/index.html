@@ -407,7 +407,7 @@ value [= @a] here  →  value X here       (emitted)</code></pre>
 
 <ul>
 <li>A block <code>[set x]…[/set]</code> value stops at the <strong>first</strong> literal <code>[/set]</code> — unless the body is a quoted whole value, which protects it: <code>[set x]"a [/set] b"[/set]</code> needs no escape.</li>
-<li>A self-closing <code>[set x = …]</code> value is scanned <strong>bracket-aware</strong>: nested <code>[…]</code> constructs pass through whole, and the value ends at the first <code>]</code> at depth 0. Consequence: an <em>unpaired</em> literal <code>[</code> or <code>]</code> must be escaped (<code>\[</code> / <code>\]</code>) or the value quoted (<code>[set x = "a ] b"]</code>).</li>
+<li>A self-closing <code>[set x = …]</code> value is scanned <strong>bracket-aware</strong>: nested <code>[…]</code> constructs pass through whole, and the value ends at the first <code>]</code> at depth 0. Consequence: an <em>unpaired</em> literal <code>[</code> or <code>]</code> must be escaped (<code>\[</code> / <code>\]</code>) or the value quoted (<code>[set x = "a ] b"]</code>). Only a <em>whole-value</em> quote protects — quotes in the middle of a value are ordinary characters, so <code>[set a = say "[" here]</code> is an unterminated-value error (write <code>\[</code>).</li>
 <li>A <code>[# … #]</code> comment stops at the <strong>first</strong> literal <code>#]</code>. <strong>Quoting does not protect it</strong> (quotes mean nothing in comments) — escape it as <code>\#]</code>.</li>
 <li>The <code>#</code> cannot be shared between opener and closer: <code>[#]</code> is an <em>unterminated</em> comment. The minimal comment is <code>[##]</code>.</li>
 </ul>
@@ -518,11 +518,13 @@ value [= @a] here  →  value X here       (emitted)</code></pre>
 
 <p><code>--strict</code> makes an undefined <code>[= @path]</code> (a plain reference, filtered or not) an error — unless its chain has a <code>default:</code>. Everywhere else undefined is a <strong>value</strong>, not an error — conditions and loops are the existence tests, so they stay silent by design:</p>
 
-<pre><code class="language-bash">--strict  x[= @missing]y        →  error: undefined reference
---strict  [if @missing]…        →  takes the false branch (no error)
---strict  [for v in @missing]   →  zero iterations (no error)
---strict  x[= @missing + 0]y    →  error — a computed expression reads the
-                                   ref as '' and arithmetic rejects it</code></pre>
+<pre><code class="language-bash">--strict  x[= @missing]y         →  error: undefined reference
+--strict  [if @missing]…         →  takes the false branch (no error)
+--strict  [for v in @missing]    →  zero iterations (no error)
+--strict  x[= @missing == ""]y   →  x1y — refs inside a computed expression
+                                    read as '' with no guard (arithmetic on
+                                    such a ref still fails, in any mode:
+                                    "…got ''")</code></pre>
 
 <p>A <em>defined</em> value never errors under strict either — including an array rendered directly: <code>[= @arr]</code> gives <code>''</code> (arrays are not renderable; add a <code>join</code> or iterate).</p>
 

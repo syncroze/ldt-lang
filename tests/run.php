@@ -98,6 +98,7 @@ check('multiline quoted value keeps its newline', "a\nb", Ldt::render('[set v = 
 throws('old /] after a quoted value errors', fn () => Ldt::render('[set a = "testomg"/]'));
 throws('unterminated = value (no ]) errors', fn () => Ldt::render('[set a = oops'));
 throws('unpaired literal [ in a = value errors (escape it)', fn () => Ldt::render('[set a = x [ y]'));
+throws('mid-value quotes do not protect a [', fn () => Ldt::render('[set a = say "[" here]'));
 
 // --- quoted strings are consistent everywhere ------------------------------
 check('escaped quote in an [if] string literal', 'match', Ldt::render('[set a = "say \"hi\""][if @a == "say \"hi\""]match[else]no[/if]'));
@@ -217,6 +218,9 @@ check('value references a nested path', 'Ada Lovelace', Ldt::render('[set u.firs
 check('undefined ref renders empty (default)', 'x', Ldt::render('x[= @nope]'));
 check('undefined nested ref renders empty', 'x', Ldt::render('x[= @a.b.c]'));
 throws('undefined ref throws in strict mode', fn () => Ldt::render('[= @nope]', strict: true));
+throws('strict also guards a parenthesized plain ref', fn () => Ldt::render('[= (@nope)]', strict: true));
+check('parenthesized ref emits like a plain one', 'x', Ldt::render('[set a = x][= (@a)]'));
+check('strict: refs in a computed expression are unguarded', 'x1y', Ldt::render('x[= @missing == ""]y', strict: true));
 
 // --- literals: brackets and @ in text ---------------------------------------
 check('lone [ is literal', 'a [ b', Ldt::render('a [ b'));
@@ -269,6 +273,16 @@ throws('modulo by zero errors', fn () => Ldt::render('[= 5 % 0]'));
 throws('@{ } is not a reference form inside [= ]', fn () => Ldt::render('[set a=1][= @{a} + 1]'));
 throws('unterminated [= ]', fn () => Ldt::render('[= 1 + 2'));
 throws('empty [= ]', fn () => Ldt::render('[=]'));
+throws('[= ] does not nest in [= ] (use parens)', fn () => Ldt::render('[= [= 1 + 1] + 1]'));
+throws('negative index is arithmetic inside [= ]', fn () => Ldt::render('[set a.-1 = v][= @a.-1]'));
+check('negative index still works in a condition', 'works', Ldt::render('[set a.-1 = neg][if @a.-1]works[/if]'));
+$msg = '';
+try {
+    Ldt::render('[= {a}]');
+} catch (\Ldtlang\SyntaxError $e) {
+    $msg = $e->getMessage();
+}
+check('stray brace in an expression fails loudly (no hang)', '1', str_contains($msg, "unexpected '{'") ? '1' : $msg);
 
 // --- count: array length -------------------------------------------------
 check('count in [= ] emits length', '3', Ldt::render('[set f.=a][set f.=b][set f.=c][= count @f]'));

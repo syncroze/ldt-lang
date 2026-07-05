@@ -61,5 +61,7 @@ Complete file listing for ldt-lang, with a one-line description of each.
 
 - `docs/.nojekyll` — tells GitHub Pages to skip the Jekyll build (this is a plain static site).
 - `docs/index.html` — GitHub Pages site: full language reference and caveats (README + CAVEATS merged), with highlighted syntax samples.
+- `docs/colors.html` — theme color reference; the ldt section is built at load time by probing `ldt-theme.css`, so it needs no edits on palette changes.
 - `docs/assets/ldt-prism.js` — Prism.js grammar approximating `.ldt` syntax for browser-side highlighting.
+- `docs/assets/ldt-theme.css` — the ldt syntax-highlighting palette, scoped to `.language-ldt` code blocks (PHP/bash snippets keep Prism's Tomorrow theme).
 - `docs/assets/style.css` — minimal styling for the Pages site.

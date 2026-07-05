@@ -66,5 +66,5 @@ Writes take a BARE name; reads carry the `@`. `@` in text is ALWAYS literal
 - `TASKS.md` — roadmap: Done / Not planned / Deferred.
 - `docs/index.html` (also live at https://syncroze.github.io/ldt-lang/docs/) —
   full language reference and every edge case/gotcha (the "Caveats" section).
-- `tests/run.php` — 390 zero-dependency tests; run with `php tests/run.php`.
+- `tests/run.php` — 398 zero-dependency tests; run with `php tests/run.php`.
   Every change must keep this green and all `examples/*.ldt` rendering.

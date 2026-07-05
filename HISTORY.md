@@ -543,6 +543,32 @@ EMIT as output (never trims its line). All 390 tests green (the 383 rewritten
 and verified; docs/index.html, the Prism grammar + ldt theme, and the
 CLAUDE.md cheat sheet all updated in the same pass.
 
+## Post-redesign audit batch (2026-07-06)
+
+The verify-everything pass after the `[= expr]` redesign. Engine untouched —
+every claim checked against execution, gaps locked with tests (390 → 398):
+
+- **Bracket-aware value scanner**: mid-value quotes protect nothing (only a
+  whole-value quote does) — `[set a = say "[" here]` is a loud unterminated
+  error; locked with a test and spelled out in caveat §4. A mid-value `]`
+  still ends the value silently (the documented "first top-level ]" rule,
+  unchanged from before the redesign).
+- **`[= (@ref)]` is strict-guarded**: parens parse away, so a parenthesized
+  plain ref keeps plain-ref semantics (guard included). Deliberate now,
+  locked with tests either way (guarded when alone, unguarded inside a
+  computed expression: `[= @missing == ""]` renders `1` under --strict).
+- **Stray `{`/`}` guard** (the ex-infinite-loop): message locked by test.
+- **Negative-index trade-off** verified both ways: `[if @a.-1]` works,
+  `[= @a.-1]` errors (arithmetic context) — both locked.
+- **Nested `[= [= ] ]` errors** — locked.
+- **Docs cross-read**: every executable claim in docs/index.html verified
+  against the engine; caveat §8's strict example corrected to show the real
+  behavior (computed-expression refs are unguarded and render, arithmetic
+  on '' fails in ANY mode, not just strict).
+- **FILES.md** gained the missing `docs/colors.html` and
+  `docs/assets/ldt-theme.css` entries; **bin/ldt** read end-to-end (clean,
+  EMIT token dump included).
+
 ## Where things stand
 
 `TASKS.md` tracks the roadmap: DONE = feed-data, loop-metadata, default,
@@ -550,7 +576,7 @@ count, filters, substring-ops, optimization-pass, quoted-set-values, unified-fal
 and the `[= expr]` emit redesign. NOT
 PLANNED = includes, macros, switch/case, custom filters, bool/null literals,
 regex, ternary. DEFERRED = nothing (the audit surface map in TASKS.md is
-fully ticked). 390 tests in `tests/run.php`; examples cover every feature;
+fully ticked). 398 tests in `tests/run.php`; examples cover every feature;
 the GitHub Pages site (`docs/index.html`, live at
 https://syncroze.github.io/ldt-lang/docs/) is the single reference doc —
 `README.md` is now just an intro + link, and `CAVEATS.md` was retired after
