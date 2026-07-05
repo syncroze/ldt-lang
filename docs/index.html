@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ldt-lang — Logic Driven Text Language</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<h1>ldt-lang</h1>
+<p class="tagline">Logic Driven Text Language — a small, dependency-free embeddable templating engine for PHP. Everything is literal text until a bracket construct appears.</p>
+
+<nav class="links">
+	<a href="https://github.com/syncroze/ldt-lang">GitHub</a>
+	<a href="https://github.com/syncroze/ldt-lang/blob/master/README.md">README</a>
+	<a href="https://github.com/syncroze/ldt-lang/blob/master/CAVEATS.md">Caveats</a>
+	<a href="https://github.com/syncroze/ldt-lang/blob/master/HISTORY.md">Design history</a>
+	<a href="https://github.com/syncroze/ldt-lang/blob/master/FILES.md">File structure</a>
+</nav>
+
+<section>
+	<h2>Assign &amp; interpolate</h2>
+	<pre><code class="language-ldt">[set greeting]Hello[/set][set name = world]@{greeting}, @{name}!
+
+[set fruit. = apple][set fruit. = banana][set fruit. = cherry]
+Second fruit: @{fruit.1}</code></pre>
+</section>
+
+<section>
+	<h2>Conditionals</h2>
+	<pre><code class="language-ldt">[set role = editor]
+Role: [if @role == admin]full access[elseif @role == editor]can edit[else]read only[/if]
+
+[set email = ada@example.com]
+Email ok : [if @email contains "@"]yes[/if]</code></pre>
+</section>
+
+<section>
+	<h2>Loops</h2>
+	<pre><code class="language-ldt">[set fruit. = apple][set fruit. = banana][set fruit. = cherry]
+[for f in @fruit]
+  - @{f}
+[/for]
+
+Evens: [for n in 2 to 10 by 2]@{n} [/for]</code></pre>
+</section>
+
+<section>
+	<h2>Expressions</h2>
+	<pre><code class="language-ldt">[set price = 20][set qty = 3]
+Subtotal: @(@price * @qty)
+
+[set tags. = a][set tags. = b][set tags. = c]
+Tag count: @(count @tags)</code></pre>
+</section>
+
+<section>
+	<h2>Filters</h2>
+	<pre><code class="language-ldt">[set name]  ada lovelace  [/set]
+trim + upper : @{name | trim | upper}
+
+who    : @{missing | default: "guest"}</code></pre>
+</section>
+
+<section>
+	<h2>Comments &amp; escaping</h2>
+	<pre><code class="language-ldt">[# a comment — renders to nothing #]
+
+[set x = hi]
+literal \@{...} : \@{x}          [# renders @{x}, not interpolated #]
+literal tag     : \[set a = 1]   [# printed as text, not executed #]</code></pre>
+</section>
+
+<footer>
+	<p>Full language reference, caveats, and design rationale live in the <a href="https://github.com/syncroze/ldt-lang">repository</a>.</p>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+<script src="assets/ldt-prism.js"></script>
+</body>
+</html>

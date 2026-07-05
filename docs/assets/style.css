@@ -1,0 +1,46 @@
+body {
+	max-width: 46rem;
+	margin: 0 auto;
+	padding: 2rem 1.25rem 4rem;
+	font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	color: #1f2328;
+}
+
+h1 {
+	margin-bottom: 0.2rem;
+}
+
+.tagline {
+	color: #57606a;
+	margin-top: 0;
+}
+
+nav.links {
+	margin: 1.25rem 0 2.5rem;
+	padding-bottom: 1.25rem;
+	border-bottom: 1px solid #d0d7de;
+}
+
+nav.links a {
+	margin-right: 1rem;
+}
+
+section {
+	margin-bottom: 2.5rem;
+}
+
+section h2 {
+	border-bottom: 1px solid #d0d7de;
+	padding-bottom: 0.3rem;
+}
+
+pre {
+	border-radius: 6px;
+	padding: 1rem !important;
+	overflow-x: auto;
+}
+
+footer {
+	color: #57606a;
+	font-size: 0.9rem;
+}

@@ -57,3 +57,10 @@ Complete file listing for ldt-lang, with a one-line description of each.
 - [`editor/phpstorm/README.md`](editor/phpstorm/README.md) — notes on the TextMate grammar bundle and its scope conventions.
 - [`editor/phpstorm/ldtlang.tmbundle/info.plist`](editor/phpstorm/ldtlang.tmbundle/info.plist) — TextMate bundle metadata.
 - [`editor/phpstorm/ldtlang.tmbundle/Syntaxes/ldtlang.tmLanguage`](editor/phpstorm/ldtlang.tmbundle/Syntaxes/ldtlang.tmLanguage) — TextMate grammar (plist) providing syntax highlighting for `.ldt` files.
+
+## [`docs/`](docs/)
+
+- `docs/.nojekyll` — tells GitHub Pages to skip the Jekyll build (this is a plain static site).
+- `docs/index.html` — GitHub Pages landing page: language tagline and highlighted syntax samples.
+- `docs/assets/ldt-prism.js` — Prism.js grammar approximating `.ldt` syntax for browser-side highlighting.
+- `docs/assets/style.css` — minimal styling for the Pages site.
