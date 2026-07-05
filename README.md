@@ -21,7 +21,7 @@ A value is classified by its *text*:
 The classification is a lens for comparison and truthiness — **the original
 text is always preserved on output**:
 
-```
+```bbcode
 [set id = 007]@{id} renders verbatim, but compares as a number: @(@id == 7)
 → 007 renders verbatim, but compares as a number: 1
 ```
@@ -35,7 +35,7 @@ size; in a comparison an array still reads as `''`).
 
 ### Set a variable
 
-```
+```bbcode
 [set greeting]Hello[/set]        block form — the body is the value (spaces kept)
 [set name = world]               self-closing form — value runs to ] (trimmed)
 ```
@@ -44,7 +44,7 @@ Values are trimmed at the ends in both forms. To keep leading/trailing spaces,
 **quote the whole value** — the outer quotes are stripped and the inside kept
 verbatim:
 
-```
+```bbcode
 [set pad = "   hello   "]       stores «   hello   » (no quotes)
 [set say = "she said \"hi\""]   interior quotes escaped as \"
 [set lit = \"quoted\"]          escaped leading quote → stores «"quoted"»
@@ -58,7 +58,7 @@ error, never a silently mangled value.
 text — into the variable instead of the output — so `[if]`, `[for]` and nested
 self-closing `[set]`s execute inside block values:
 
-```
+```bbcode
 [set greeting]Hello [if @vip]dear [/if]@{name}[/set]
 [set list][for x in @items]@{x},[/for][/set]
 ```
@@ -71,7 +71,7 @@ coordinates.
 
 ### Remove a variable — `[unset]`
 
-```
+```bbcode
 [unset draft]                    the name becomes undefined again
 [unset user.email]               remove one key; siblings stay
 [unset a, b.c, items.1]          multiple comma-separated paths
@@ -85,7 +85,7 @@ container.
 
 ### Interpolate
 
-```
+```bbcode
 @{greeting}, @{name}!
 ```
 
@@ -98,7 +98,7 @@ value is **falsy** — undefined, empty, numeric zero, or an empty array — the
 same rule `[if]` uses. `007` and `"0x"` are truthy and pass through. Its argument is a full
 expression, and chaining gives cascading fallbacks:
 
-```
+```bbcode
 Hello @{user.name | default: "guest"}!
 @{price | default: @basePrice}              a variable fallback
 @{missing | default: @fb | default: "-"}    cascades through falsy values
@@ -110,7 +110,7 @@ A `.` descends one level. A **trailing dot** means "append at the next index".
 A numeric segment is an index; a name segment is a key. Intermediate arrays are
 created on demand; descending through a scalar is an error.
 
-```
+```bbcode
 [set fruit. = apple]            append          → fruit[0]
 [set fruit. = banana]           append          → fruit[1]
 [set user.first = Ada]          keyed
@@ -122,7 +122,7 @@ created on demand; descending through a scalar is an error.
 
 ### Comment
 
-```
+```bbcode
 [# renders to nothing; may span multiple lines #]
 ```
 
@@ -131,7 +131,7 @@ Pass `--no-trim` to keep them.
 
 ## Conditionals
 
-```
+```bbcode
 [if @role == admin]Admin[elseif @role == editor]Editor[else]Guest[/if]
 ```
 
@@ -156,7 +156,7 @@ See `examples/conditions.ldt`.
 
 ## Loops
 
-```
+```bbcode
 [for v in @items] … [/for]           one-var: value only
 [for k, v in @items] … [/for]        two-var: key/index + value
 [for n in 1 to 5] … [/for]           inclusive range (add 'by 2' for a step)
@@ -179,7 +179,7 @@ See `examples/conditions.ldt`.
 `loop.index` (1-based), `loop.index0` (0-based), `loop.first`, `loop.last`
 (each `1`/`0`), and `loop.count` (the total). Nested loops each get their own.
 
-```
+```bbcode
 [for v in @items]@{v}[if not @loop.last], [/if][/for]     → a, b, c
 ```
 
@@ -192,7 +192,7 @@ that computes instead of just looking up. It works **anywhere text is emitted**
 (body output *and* `[set]` values), and inside it you're in expression context:
 references are bare `@name` (the `@{…}` form is rejected there).
 
-```
+```bbcode
 Subtotal: @(@price * @qty)
 [set total = @(@price * @qty + 5)]      capture a computed value
 [for n in 1 to 3]@(@n * @n) [/for]       → 1 4 9
@@ -224,7 +224,7 @@ A postfix pipe chain transforms a value on its way out. It works in both
 `@{ ... }` and `@( ... )`; args follow a `:`, separated by commas, and each arg
 is a **full expression**:
 
-```
+```bbcode
 @{name | trim | upper}
 @{items | join: ", "}
 @{price | round: @precision}
@@ -261,7 +261,7 @@ See `examples/filters.ldt`.
 A `\` before any **non-alphanumeric** character emits it literally, so any
 delimiter can be written verbatim:
 
-```
+```bbcode
 \@{x}     → @{x}       (a literal interpolation, not resolved)
 \[set …]  → [set …]    (a literal tag)
 \[/set]   \]   \#]     → literal value/comment closers
@@ -297,7 +297,7 @@ echo Ldt::renderFile('examples/data.ldt', ['cart' => [['item' => 'Pen', 'qty' =>
 
 From the CLI:
 
-```
+```bash
 ldt --set user.first=Ada file.ldt        # dotted key → nested path
 ldt --json data.json file.ldt            # a whole JSON object as the context
 ldt --json data.json --set site=X f.ldt  # later flags win
@@ -314,7 +314,7 @@ rather than erroring (and then fail arithmetic if misused).
 
 ## Run it
 
-```
+```bash
 php bin/ldt examples/assignments.ldt      # render a file
 php bin/ldt --strict file.ldt            # error on undefined references
 php bin/ldt --tokens file.ldt            # dump the token stream
