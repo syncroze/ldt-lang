@@ -4,8 +4,7 @@ Complete file listing for ldt-lang, with a one-line description of each.
 
 ## Root
 
-- [`README.md`](README.md) — user-facing language reference: syntax, tags, filters, ranges, `[set]`/`[unset]` paths, examples.
-- [`CAVEATS.md`](CAVEATS.md) — documented edge cases and gotchas (numbered sections: whitespace trimming, seeded data, strict mode, resource limits, etc.).
+- [`README.md`](README.md) — intro/tagline plus a link to the full documentation site.
 - [`CLAUDE.md`](CLAUDE.md) — working rules and project cheat sheet for Claude sessions (auto-loads when working in this repo).
 - [`TASKS.md`](TASKS.md) — task/audit log: numbered work batches, audit surface map, deferred items.
 - [`HISTORY.md`](HISTORY.md) — full design/decision log: rationale for major choices, alternatives considered and rejected, chronological audit-round writeups.
@@ -61,6 +60,6 @@ Complete file listing for ldt-lang, with a one-line description of each.
 ## [`docs/`](docs/)
 
 - `docs/.nojekyll` — tells GitHub Pages to skip the Jekyll build (this is a plain static site).
-- `docs/index.html` — GitHub Pages landing page: language tagline and highlighted syntax samples.
+- `docs/index.html` — GitHub Pages site: full language reference and caveats (README + CAVEATS merged), with highlighted syntax samples.
 - `docs/assets/ldt-prism.js` — Prism.js grammar approximating `.ldt` syntax for browser-side highlighting.
 - `docs/assets/style.css` — minimal styling for the Pages site.

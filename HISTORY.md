@@ -500,8 +500,11 @@ was untouched; 383 tests stand.
 count, filters, substring-ops, optimization-pass, quoted-set-values, unified-falsy, unset, uniform-set-closer, mini-templates+or-removal+arity+context-keywords. NOT
 PLANNED = includes, macros, switch/case, custom filters, bool/null literals,
 regex, ternary. DEFERRED = nothing (the audit surface map in TASKS.md is
-fully ticked). `CAVEATS.md` documents all edge cases
-(quoted values = §4b). 383 tests in `tests/run.php`; examples cover every
-feature; `README.md` is the single reference doc (the standalone
-`docs/ldt-lang.html`/`.md` page was retired — it duplicated README by
-~75%; its few unique tables were merged in instead).
+fully ticked). 383 tests in `tests/run.php`; examples cover every feature;
+the GitHub Pages site (`docs/index.html`, live at
+https://syncroze.github.io/ldt-lang/) is the single reference doc —
+`README.md` is now just an intro + link, and `CAVEATS.md` was retired after
+its edge-case sections (quoted values = §4b, etc.) were merged into the
+Pages site's "Caveats" section (the standalone `docs/ldt-lang.html`/`.md`
+page from an earlier round was retired the same way, into README, before
+README itself was trimmed down).

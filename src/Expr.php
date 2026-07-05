@@ -14,7 +14,7 @@ namespace Ldtlang;
  * A single value class with a `kind` discriminant keeps the AST in one file
  * (PSR-4 friendly) while {@see self::evaluate()} walks it. Semantics — the
  * two-type (String/Number) model, falsy rules and numeric-aware comparison —
- * are described in full in `CAVEATS.md`.
+ * are described in full in docs/index.html (the "Caveats" section).
  */
 final class Expr
 {

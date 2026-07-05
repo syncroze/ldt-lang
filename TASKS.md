@@ -43,6 +43,27 @@ Last updated: 2026-07-05.
   `--strict`. Arrays flow through the chain but the final result must be a
   scalar.
 
+### 22. README + CAVEATS merged into the GitHub Pages doc site ✅
+- `docs/index.html` (the GitHub Pages site, `syncroze.github.io/ldt-lang/`)
+  is now the complete language reference: every section of `README.md`
+  (data model, assignment/interpolation, conditionals, loops, expressions,
+  filters, escaping, feeding data in, strict mode, run it, editor support,
+  what's-not-possible, excluded features, status) plus every section of
+  `CAVEATS.md` (all numbered edge cases, §1–§13), converted to semantic
+  HTML with real `<table>`s, heading `id`s, and an in-page table of
+  contents. `CAVEATS.md` was deleted (superseding entry #21's plan of
+  README as the sole doc — the reference doc moved from README to the
+  Pages site instead).
+- `README.md` trimmed to just the title, tagline, pipeline one-liner, and
+  a prominent link to the docs site — no quickstart/run instructions.
+- Cross-references updated: `CLAUDE.md`'s authoritative-documents list,
+  `src/Expr.php`'s doc-comment, `FILES.md`'s README/CAVEATS/docs entries,
+  and `HISTORY.md`'s "Where things stand" section now point at
+  `docs/index.html` instead of `CAVEATS.md`/README's removed sections.
+  Historical log entries referencing `CAVEATS.md` (e.g. #18–#21) are left
+  as-is since they're a record of what happened at the time, not a
+  current-state claim.
+
 ### 21. Single-file HTML doc retired; content merged into README ✅
 - `docs/ldt-lang.html` (standalone styled HTML page + JS syntax highlighter)
   was first ported 1:1 to `docs/ldt-lang.md`, then found to duplicate
