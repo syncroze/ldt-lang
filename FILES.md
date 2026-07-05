@@ -27,8 +27,8 @@ Complete file listing for ldt-lang, with a one-line description of each.
 - [`ForNode.php`](src/ForNode.php) — AST node for `[for]` loops.
 - [`IfNode.php`](src/IfNode.php) — AST node for `[if]/[elseif]/[else]` conditionals.
 - [`Expr.php`](src/Expr.php) — expression AST/value helpers, including `intInRange()` overflow guard.
-- [`ExprParser.php`](src/ExprParser.php) — parses expressions used in `[if]`, `[for]` headers, `@()`.
-- [`Interpreter.php`](src/Interpreter.php) — tree-walking evaluator; executes the AST against an `Environment`, handles loops (including lazy range streaming), filters, interpolation.
+- [`ExprParser.php`](src/ExprParser.php) — parses expressions used in `[if]`, `[for]` headers, `[= ]` emit tags.
+- [`Interpreter.php`](src/Interpreter.php) — tree-walking evaluator; executes the AST against an `Environment`, handles loops (including lazy range streaming), filters, `[= ]` emits.
 - [`Environment.php`](src/Environment.php) — data model for template variables: dot-path get/set/unset, nested arrays, numeric-key normalization.
 - [`Filters.php`](src/Filters.php) — built-in filter functions (`default`, `truncate`, `count`, etc.) applied via `|`.
 - [`BreakSignal.php`](src/BreakSignal.php) — internal exception used to implement `[break]`.
@@ -46,7 +46,7 @@ Complete file listing for ldt-lang, with a one-line description of each.
 - [`examples/conditions.ldt`](examples/conditions.ldt) — `[if]/[elseif]/[else]` conditional demos.
 - [`examples/data.ldt`](examples/data.ldt) — rendering seeded data (paired with `data.json`).
 - [`examples/data.json`](examples/data.json) — sample JSON data consumed by `data.ldt` via the CLI `--json` flag.
-- [`examples/expressions.ldt`](examples/expressions.ldt) — `@()` expression syntax demos (operators, refs, word-operators).
+- [`examples/expressions.ldt`](examples/expressions.ldt) — `[= ]` expression syntax demos (operators, refs, word-operators).
 - [`examples/filters.ldt`](examples/filters.ldt) — `|filter` chain demos.
 - [`examples/limitations.ldt`](examples/limitations.ldt) — documented edge cases/known limitations demonstrated in template form.
 - [`examples/loops.ldt`](examples/loops.ldt) — `[for]` loop demos, including ranges and loop metadata (`loop.count`, etc.).

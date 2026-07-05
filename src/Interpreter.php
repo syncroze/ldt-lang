@@ -6,7 +6,7 @@ namespace Ldtlang;
 
 /**
  * Walks the node tree left to right, mutating the {@see Environment} on `[set]`
- * and emitting text for literals and interpolations. A single pass suffices
+ * and emitting text for literals and `[= ...]` tags. A single pass suffices
  * because a variable must be set before it is used (like a template): forward
  * references resolve to the strict/undefined policy.
  *
@@ -77,12 +77,8 @@ final class Interpreter
                     }
                     break;
 
-                case Token::INTERP:
-                    $out .= $this->resolve($node, $env);
-                    break;
-
-                case Token::EXPR:
-                    $out .= $this->evalExpr($node, $env);
+                case Token::EMIT:
+                    $out .= $this->emit($node, $env);
                     break;
 
                 case Token::BREAK:
@@ -155,10 +151,10 @@ final class Interpreter
                     $env->bind($node->keyVar, (string) $key);
                 }
                 // A value may be a scalar or a sub-array (nested iteration):
-                // bind it as-is so @{v} renders empty but @{v.child} resolves.
+                // bind it as-is so [= @v] renders empty but [= @v.child] resolves.
                 $env->bind($node->valueVar, is_array($value) ? $value : (string) $value);
 
-                // Per-iteration metadata, addressed as @{loop.index} etc.
+                // Per-iteration metadata, addressed as @loop.index etc.
                 $env->bind('loop', [
                     'index' => (string) ($i + 1),
                     'index0' => (string) $i,
@@ -226,7 +222,7 @@ final class Interpreter
         }
         if (!is_array($raw)) {
             $ref = implode('.', $it['segments']);
-            $this->fail($node, "cannot iterate @{{$ref}}: not an array");
+            $this->fail($node, "cannot iterate @{$ref}: not an array");
         }
 
         $pairs = [];
@@ -272,12 +268,12 @@ final class Interpreter
         $value = $env->lookup($bound['segments']);
         if ($value === null || preg_match('/^[+-]?\d+$/', $value) !== 1) {
             $ref = implode('.', $bound['segments']);
-            $this->fail($node, "range bound @{{$ref}} must be an integer");
+            $this->fail($node, "range bound @{$ref} must be an integer");
         }
         // (int) saturates silently on overflow — reject instead.
         if (!Expr::intInRange($value)) {
             $ref = implode('.', $bound['segments']);
-            $this->fail($node, "range bound @{{$ref}} ('$value') is out of the integer range");
+            $this->fail($node, "range bound @{$ref} ('$value') is out of the integer range");
         }
         return (int) $value;
     }
@@ -307,17 +303,38 @@ final class Interpreter
         }
     }
 
-    private function resolve(Token $token, Environment $env): string
+    /**
+     * Render an `[= expr]` tag. A plain reference — filtered or not — keeps
+     * direct-lookup semantics: the raw value feeds the filter chain (arrays
+     * reach join/…), arrays without filters render empty, and strict mode
+     * flags the undefined name. Any other expression evaluates and renders
+     * its scalar result.
+     */
+    private function emit(Token $token, Environment $env): string
     {
-        ['segments' => $segments] = $token->value;
-        $filters = $token->value['filters'] ?? [];
+        $expr = $token->value;
+        if ($expr->kind === Expr::REF) {
+            return $this->resolveRef($expr->data['segments'], [], $token, $env);
+        }
+        if ($expr->kind === Expr::FILTERED && $expr->data['inner']->kind === Expr::REF) {
+            return $this->resolveRef($expr->data['inner']->data['segments'], $expr->data['chain'], $token, $env);
+        }
+        return Expr::render($this->evalGuarded($expr, $env, $token->line, $token->col));
+    }
+
+    /**
+     * @param array<int, string> $segments
+     * @param array<int, array{name: string, args: array<int, Expr>}> $filters
+     */
+    private function resolveRef(array $segments, array $filters, Token $token, Environment $env): string
+    {
         $raw = $env->lookupRaw($segments);
 
         if ($filters === []) {
             if ($raw === null) {
                 if ($this->strict) {
                     $ref = implode('.', $segments);
-                    throw new SyntaxError("undefined reference @{{$ref}}", $token->line, $token->col, $this->file);
+                    throw new SyntaxError("undefined reference @{$ref}", $token->line, $token->col, $this->file);
                 }
                 return '';
             }
@@ -328,7 +345,7 @@ final class Interpreter
         if ($raw === null) {
             if ($this->strict && !Filters::chainHasDefault($filters)) {
                 $ref = implode('.', $segments);
-                throw new SyntaxError("undefined reference @{{$ref}}", $token->line, $token->col, $this->file);
+                throw new SyntaxError("undefined reference @{$ref}", $token->line, $token->col, $this->file);
             }
             $raw = ''; // a `default` filter (or lax mode) handles it
         }
@@ -347,25 +364,19 @@ final class Interpreter
         return $result;
     }
 
-    /** Evaluate a `@( expr )` node and render its result as output text. */
-    private function evalExpr(Token $token, Environment $env): string
-    {
-        return Expr::render($this->evalGuarded($token->value, $env, $token->line, $token->col));
-    }
-
     /**
      * Render a [set] value exactly like body text — into the variable instead
      * of the output. Block values are mini-templates: `[if]`, `[for]` and
-     * nested self-closing `[set]`s execute; `@{}`/`@()`/escapes resolve.
+     * nested self-closing `[set]`s execute; `[= ...]`/escapes resolve.
      * Parsed values are memoized per source string so a `[set]` inside a loop
      * does not re-parse on every iteration; the cache is bounded by the number
      * of distinct set-values in the template.
      */
     private function renderValue(string $expr, Environment $env, int $line, int $col): string
     {
-        // Fast path: every construct starts with '\', '@' or '[' — text
-        // containing none of them renders as itself.
-        if (strcspn($expr, '\\@[') === strlen($expr)) {
+        // Fast path: every construct starts with '\' or '[' — text
+        // containing neither renders as itself.
+        if (strcspn($expr, '\\[') === strlen($expr)) {
             return $expr;
         }
         // Site-keyed so identical values at different positions each carry

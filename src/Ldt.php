@@ -7,7 +7,7 @@ namespace Ldtlang;
 /**
  * Public facade for the ldt-lang (.ldt) engine — "Logic Driven Text Language".
  *
- *   echo Ldt::render('Hello [set who = world]@{who}!');
+ *   echo Ldt::render('Hello [set who = world][= @who]!');
  *   echo Ldt::renderFile('examples/assignments.ldt');
  */
 final class Ldt

@@ -14,8 +14,10 @@
 	</array>
 	<key>patterns</key>
 	<array>
-		<!-- \x — escape first, so \[if / \@{ / \#] never highlight as live syntax -->
+		<!-- \x — escape first, so \[if / \[= / \#] never highlight as live syntax -->
 		<dict><key>include</key><string>#escape</string></dict>
+		<!-- [= expression ] -->
+		<dict><key>include</key><string>#emit</string></dict>
 		<!-- [# comment #] -->
 		<dict>
 			<key>name</key>
@@ -62,8 +64,7 @@
 			<key>patterns</key>
 			<array>
 				<dict><key>include</key><string>#escape</string></dict>
-				<dict><key>include</key><string>#interpolation</string></dict>
-				<dict><key>include</key><string>#expression</string></dict>
+				<dict><key>include</key><string>#emit</string></dict>
 			</array>
 		</dict>
 		<!-- block set: [set path]value[/set] -->
@@ -93,8 +94,7 @@
 			<key>patterns</key>
 			<array>
 				<dict><key>include</key><string>#escape</string></dict>
-				<dict><key>include</key><string>#interpolation</string></dict>
-				<dict><key>include</key><string>#expression</string></dict>
+				<dict><key>include</key><string>#emit</string></dict>
 			</array>
 		</dict>
 		<!-- [unset a, b.c] — arguments are dot-paths -->
@@ -184,10 +184,6 @@
 			<key>match</key>
 			<string>(\[(?:else|/if|/for|break|continue)\s*\])</string>
 		</dict>
-		<!-- @( expression ) -->
-		<dict><key>include</key><string>#expression</string></dict>
-		<!-- @{ reference } -->
-		<dict><key>include</key><string>#interpolation</string></dict>
 	</array>
 	<key>repository</key>
 	<dict>
@@ -248,7 +244,7 @@
 			</dict>
 		</dict>
 		<!-- shared terms for [if]/[elseif]/[for] headers (no filters here —
-		     filter chains are @{}/@() only) -->
+		     filter chains are [= ] only) -->
 		<key>header-terms</key>
 		<dict>
 			<key>patterns</key>
@@ -260,23 +256,23 @@
 				<dict><key>include</key><string>#operators</string></dict>
 			</array>
 		</dict>
-		<key>expression</key>
+		<key>emit</key>
 		<dict>
 			<key>name</key>
-			<string>meta.expression.ldtlang</string>
+			<string>meta.emit.ldtlang</string>
 			<key>begin</key>
-			<string>(@\()</string>
+			<string>(\[=)</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
-				<dict><key>name</key><string>punctuation.definition.expression.begin.ldtlang</string></dict>
+				<dict><key>name</key><string>punctuation.definition.emit.begin.ldtlang</string></dict>
 			</dict>
 			<key>end</key>
-			<string>(\))</string>
+			<string>(\])</string>
 			<key>endCaptures</key>
 			<dict>
 				<key>1</key>
-				<dict><key>name</key><string>punctuation.definition.expression.end.ldtlang</string></dict>
+				<dict><key>name</key><string>punctuation.definition.emit.end.ldtlang</string></dict>
 			</dict>
 			<key>patterns</key>
 			<array>
@@ -284,48 +280,6 @@
 				<dict><key>include</key><string>#filter</string></dict>
 				<dict><key>include</key><string>#wordops</string></dict>
 				<dict><key>include</key><string>#ref</string></dict>
-				<dict><key>include</key><string>#number</string></dict>
-				<dict><key>include</key><string>#operators</string></dict>
-			</array>
-		</dict>
-		<key>interpolation</key>
-		<dict>
-			<key>name</key>
-			<string>meta.interpolation.ldtlang</string>
-			<key>begin</key>
-			<string>(@\{)</string>
-			<key>beginCaptures</key>
-			<dict>
-				<key>1</key>
-				<dict><key>name</key><string>punctuation.definition.interpolation.begin.ldtlang</string></dict>
-			</dict>
-			<key>end</key>
-			<string>(\})</string>
-			<key>endCaptures</key>
-			<dict>
-				<key>1</key>
-				<dict><key>name</key><string>punctuation.definition.interpolation.end.ldtlang</string></dict>
-			</dict>
-			<key>patterns</key>
-			<array>
-				<dict><key>include</key><string>#filter</string></dict>
-				<dict><key>include</key><string>#string</string></dict>
-				<dict><key>include</key><string>#ref</string></dict>
-				<dict>
-					<key>match</key>
-					<string>([A-Za-z_][A-Za-z0-9_]*)</string>
-					<key>name</key>
-					<string>variable.other.ldtlang</string>
-				</dict>
-				<dict>
-					<key>match</key>
-					<string>(\.)(-?[A-Za-z0-9_]+)</string>
-					<key>captures</key>
-					<dict>
-						<key>2</key>
-						<dict><key>name</key><string>constant.other.key.ldtlang</string></dict>
-					</dict>
-				</dict>
 				<dict><key>include</key><string>#number</string></dict>
 				<dict><key>include</key><string>#operators</string></dict>
 			</array>

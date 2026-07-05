@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Ldtlang;
 
 /**
- * An expression node used inside `[if]` / `[elseif]` conditions.
+ * An expression node used inside `[if]` / `[elseif]` conditions and `[= ...]`
+ * emit tags.
  *
- * The condition grammar: variable reads `@path` / `@{path}`, string/number
- * literals, `defined @path`, comparisons (== != < > <= >=), and boolean logic
+ * The expression grammar: variable reads `@path`, string/number literals,
+ * `defined @path`, comparisons (== != < > <= >=), and boolean logic
  * (and / or / not) with parentheses.
  *
  * A single value class with a `kind` discriminant keeps the AST in one file
@@ -18,7 +19,7 @@ namespace Ldtlang;
  */
 final class Expr
 {
-    public const REF = 'ref';         // @path / @{path}
+    public const REF = 'ref';         // @path
     public const LIT = 'lit';         // bare word or "quoted" literal
     public const DEFINED = 'defined'; // defined @path
     public const COUNT = 'count';     // count @path  (array length)
@@ -226,7 +227,7 @@ final class Expr
     /**
      * Integer arithmetic. Both operands must be integers; a non-integer (or
      * division/modulo by zero) throws — the {@see Interpreter} catches it and
-     * re-raises a {@see SyntaxError} with the `@(...)` coordinates.
+     * re-raises a {@see SyntaxError} with the `[= ...]` coordinates.
      */
     private function evalCount(Environment $env): string
     {

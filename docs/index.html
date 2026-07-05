@@ -6,6 +6,7 @@
 <title>ldt-lang — Logic Driven Text Language</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
 <link rel="stylesheet" href="assets/style.css">
+<link rel="stylesheet" href="assets/ldt-theme.css">
 </head>
 <body>
 
@@ -23,7 +24,7 @@
 	<strong>Contents</strong>
 	<ol>
 		<li><a href="#data-model">Data model</a></li>
-		<li><a href="#assignment">Assignment &amp; interpolation</a></li>
+		<li><a href="#assignment">Assignment &amp; emitting</a></li>
 		<li><a href="#conditionals">Conditionals</a></li>
 		<li><a href="#loops">Loops</a></li>
 		<li><a href="#expressions">Expressions</a></li>
@@ -42,6 +43,8 @@
 
 <p>The engine is a four-stage <code>Lexer → Trimmer → Parser → Interpreter</code> pipeline with a bracket-tag surface syntax and a <strong>nested</strong> data model.</p>
 
+<p><strong>The whole surface in one breath:</strong> <code>[...]</code> is a construct, <code>@path</code> reads a variable (only inside constructs), <code>[= expr]</code> evaluates and emits, <code>\</code> escapes — everything else is literal text. Writes take a bare name (<code>[set name]</code>, <code>[unset name]</code>, <code>[for k, v]</code>); reads carry the <code>@</code>.</p>
+
 <section id="data-model">
 <h2>Data model — two types, nested arrays, undefined</h2>
 
@@ -59,19 +62,21 @@
 
 <p>The classification is a lens for comparison and truthiness — <strong>the original text is always preserved on output</strong>:</p>
 
-<pre><code class="language-ldt">[set id = 007]@{id} renders verbatim, but compares as a number: @(@id == 7)
+<pre><code class="language-ldt">[set id = 007][= @id] renders verbatim, but compares as a number: [= @id == 7]
 → 007 renders verbatim, but compares as a number: 1</code></pre>
 
 <p><strong>Falsy</strong> = empty string, undefined, numeric zero (<code>0</code>, <code>0.0</code>, <code>-0</code>), and an empty array. Everything else is truthy — including the non-numeric string <code>0x</code> and a non-empty array (<code>[if @items]</code> tests presence; <code>count @items</code> its size; in a comparison an array still reads as <code>''</code>).</p>
 </section>
 
 <section id="assignment">
-<h2>Assignment &amp; interpolation</h2>
+<h2>Assignment &amp; emitting</h2>
 
 <h3 id="set-a-variable">Set a variable</h3>
 
 <pre><code class="language-ldt">[set greeting]Hello[/set]        block form — the body is the value (spaces kept)
 [set name = world]               self-closing form — value runs to ] (trimmed)</code></pre>
+
+<p>A <code>[set]</code>/<code>[unset]</code> name is a <strong>write target</strong>, so it is bare — no <code>@</code>. The <code>@</code> always and only means <em>read this value</em>.</p>
 
 <p>Values are trimmed at the ends in both forms. To keep leading/trailing spaces, <strong>quote the whole value</strong> — the outer quotes are stripped and the inside kept verbatim:</p>
 
@@ -81,12 +86,14 @@
 
 <p>A value that <em>starts</em> with an unescaped <code>"</code> must be a properly quoted whole value (closing quote last, interior quotes escaped) — anything else is an error, never a silently mangled value.</p>
 
-<p><strong>Block values are mini-templates.</strong> A <code>[set]</code> value renders exactly like body text — into the variable instead of the output — so <code>[if]</code>, <code>[for]</code> and nested self-closing <code>[set]</code>s execute inside block values:</p>
+<p><strong>Values are mini-templates.</strong> A <code>[set]</code> value renders exactly like body text — into the variable instead of the output — so <code>[= ]</code>, <code>[if]</code>, <code>[for]</code> and nested self-closing <code>[set]</code>s execute inside values. The self-closing form counts <code>[</code>&nbsp;<code>]</code> pairs, so nested constructs keep their own closers:</p>
 
-<pre><code class="language-ldt">[set greeting]Hello [if @vip]dear [/if]@{name}[/set]
-[set list][for x in @items]@{x},[/for][/set]</code></pre>
+<pre><code class="language-ldt">[set greeting]Hello [if @vip]dear [/if][= @name][/set]
+[set msg = Hello [= @name]!]
+[set total = [= @price * @qty + 5]]
+[set list][for x in @items][= @x],[/for][/set]</code></pre>
 
-<p>Escape a literal tag (<code>\[if</code>). Two boundaries: a nested <em>block</em> set inside a block set is a loud error (the outer scan stops at the first <code>[/set]</code>), and a <code>[break]</code>/<code>[continue]</code> inside a value cannot affect a loop <em>outside</em> it — a value is its own render scope. Errors inside values carry exact template coordinates.</p>
+<p>Escape a literal tag (<code>\[if</code>) — and an <em>unpaired</em> literal bracket in a self-closing value (<code>\[</code> / <code>\]</code>), since the scan pairs them. Two boundaries: a nested <em>block</em> set inside a block set is a loud error (the outer scan stops at the first <code>[/set]</code>), and a <code>[break]</code>/<code>[continue]</code> inside a value cannot affect a loop <em>outside</em> it — a value is its own render scope. Errors inside values carry exact template coordinates.</p>
 
 <h3 id="remove-a-variable">Remove a variable — <code>[unset]</code></h3>
 
@@ -96,17 +103,17 @@
 
 <p><code>[unset path]</code> removes the value entirely (subtree included) — afterward <code>defined</code> is false, strict mode errors on it, and fallbacks catch it. It is a no-op when the path doesn't exist (idempotent). Removing an array index leaves a hole (no reindexing); <code>[unset g][set g.k = v]</code> is the idiom for resetting a container.</p>
 
-<h3 id="interpolate">Interpolate</h3>
+<h3 id="interpolate">Emit a value — <code>[= ]</code></h3>
 
-<pre><code class="language-ldt">@{greeting}, @{name}!</code></pre>
+<pre><code class="language-ldt">[= @greeting], [= @name]!</code></pre>
 
-<p><code>@{path}</code> is the interpolation. It has a clear close, so it splices anywhere — even mid-word: <code>con@{mid}tetur</code>. A bare <code>@</code> in text (e.g. an email address) is literal; only <code>@{</code> starts an interpolation.</p>
+<p><code>[= expr]</code> evaluates an expression and emits the result. The simplest expression is a single reference, so <code>[= @name]</code> is the everyday interpolation. It has a clear close, so it splices anywhere — even mid-word: <code>con[= @mid]tetur</code>. A <code>@</code> in plain text is <em>always</em> literal — emails (<code>a@b.com</code>) and handles (<code>(@ada)</code>) need no escaping, ever.</p>
 
 <p><strong>Fallback for falsy values — the <code>default:</code> filter.</strong> It triggers when the value is <strong>falsy</strong> — undefined, empty, numeric zero, or an empty array — the same rule <code>[if]</code> uses. <code>007</code> and <code>"0x"</code> are truthy and pass through. Its argument is a full expression, and chaining gives cascading fallbacks:</p>
 
-<pre><code class="language-ldt">Hello @{user.name | default: "guest"}!
-@{price | default: @basePrice}              a variable fallback
-@{missing | default: @fb | default: "-"}    cascades through falsy values</code></pre>
+<pre><code class="language-ldt">Hello [= @user.name | default: "guest"]!
+[= @price | default: @basePrice]              a variable fallback
+[= @missing | default: @fb | default: "-"]    cascades through falsy values</code></pre>
 
 <h3 id="dot-paths">Dot-paths (nested to any depth)</h3>
 
@@ -118,7 +125,7 @@
 [set order.items. = pen]        nested + append → order.items[0]
 [set order.items.0.note = x]    nested keyed leaf
 
-@{fruit.1}  @{user.first}  @{order.items.0}</code></pre>
+[= @fruit.1]  [= @user.first]  [= @order.items.0]</code></pre>
 
 <h3 id="comment">Comment</h3>
 
@@ -132,11 +139,11 @@
 
 <pre><code class="language-ldt">[if @role == admin]Admin[elseif @role == editor]Editor[else]Guest[/if]</code></pre>
 
-<p>Inside a tag, a reference is bare <code>@name</code> (the closed <code>@{name}</code> form is for text only and is rejected here); a bareword is an <em>unquoted string literal</em>, so the <code>@</code> is what marks "this is a variable".</p>
+<p>A reference is <code>@name</code>; a bareword is an <em>unquoted string literal</em>, so the <code>@</code> is what marks "this is a variable".</p>
 
 <ul>
 <li>comparisons <code>== != &lt; &gt; &lt;= &gt;=</code>; both operands numeric → numeric compare (<code>5 == 5.0</code>, <code>007 == 7</code>), otherwise lexicographic</li>
-<li>substring tests <code>contains</code>, <code>starts with</code>, <code>ends with</code> — case-sensitive, on the text form; usable in <code>@()</code> too and negated with <code>not</code>: <code>[if @file ends with ".pdf"]</code>, <code>[if @email contains "@"]</code></li>
+<li>substring tests <code>contains</code>, <code>starts with</code>, <code>ends with</code> — case-sensitive, on the text form; usable in <code>[= ]</code> too and negated with <code>not</code>: <code>[if @file ends with ".pdf"]</code>, <code>[if @email contains "@"]</code></li>
 <li>boolean logic <code>and</code> / <code>or</code> / <code>not</code> with parentheses <code>( )</code></li>
 <li><code>defined @path</code> tests existence</li>
 <li>literals with spaces use <code>"quotes"</code></li>
@@ -155,17 +162,19 @@
 [for n in 1 to 5] … [/for]           inclusive range (add 'by 2' for a step)
 [break]   [continue]                 inside a loop only</code></pre>
 
+<p>The loop variables are declarations (writes), so they are bare — <code>k</code>, <code>v</code> — while the iterable is a read: <code>@items</code>.</p>
+
 <ul>
 <li>iterate any array by dot-path, including nested ones (<code>@order.items</code>)</li>
-<li><strong>nested iteration</strong>: a loop value may itself be a sub-array, so <code>@{v}</code> renders empty but <code>@{v.name}</code> resolves — loop over records</li>
+<li><strong>nested iteration</strong>: a loop value may itself be a sub-array, so <code>[= @v]</code> renders empty but <code>[= @v.name]</code> resolves — loop over records</li>
 <li>ranges are <code>a to b</code> (inclusive), direction inferred (<code>3 to 1</code> counts down), optional <code>by step</code> (positive). Any bound may be a <code>@ref</code>, including the <strong>start</strong> (<code>@lo to @hi by @step</code>). Ranges stream lazily — a huge range costs time, never memory; bounds must fit the platform integer</li>
 <li>loop variables are block-scoped: they don't leak, and any prior binding of the same name is restored afterward</li>
 <li><code>[break]</code> / <code>[continue]</code> bind to the nearest enclosing loop; output emitted before them is kept</li>
 </ul>
 
-<p><strong>Loop metadata</strong> — inside a <code>[for]</code> body, <code>@{loop.*}</code> describes the iteration: <code>loop.index</code> (1-based), <code>loop.index0</code> (0-based), <code>loop.first</code>, <code>loop.last</code> (each <code>1</code>/<code>0</code>), and <code>loop.count</code> (the total). Nested loops each get their own.</p>
+<p><strong>Loop metadata</strong> — inside a <code>[for]</code> body, <code>@loop.*</code> describes the iteration: <code>loop.index</code> (1-based), <code>loop.index0</code> (0-based), <code>loop.first</code>, <code>loop.last</code> (each <code>1</code>/<code>0</code>), and <code>loop.count</code> (the total). Nested loops each get their own.</p>
 
-<pre><code class="language-ldt">[for v in @items]@{v}[if not @loop.last], [/if][/for]     → a, b, c</code></pre>
+<pre><code class="language-ldt">[for v in @items][= @v][if not @loop.last], [/if][/for]     → a, b, c</code></pre>
 
 <p>See <code>examples/loops.ldt</code>.</p>
 </section>
@@ -173,35 +182,35 @@
 <section id="expressions">
 <h2>Expressions</h2>
 
-<p><code>@(expr)</code> evaluates an expression and emits the result — a sibling of <code>@{path}</code> that computes instead of just looking up. It works <strong>anywhere text is emitted</strong> (body output <em>and</em> <code>[set]</code> values), and inside it you're in expression context: references are bare <code>@name</code> (the <code>@{…}</code> form is rejected there).</p>
+<p><code>[= expr]</code> is the emit tag: it evaluates an expression and writes the result into the output. It works <strong>anywhere text is emitted</strong> (body output <em>and</em> <code>[set]</code> values), and inside it you're in expression context: references are bare <code>@name</code>, barewords are string literals, arithmetic is on.</p>
 
-<pre><code class="language-ldt">Subtotal: @(@price * @qty)
-[set total = @(@price * @qty + 5)]      capture a computed value
-[for n in 1 to 3]@(@n * @n) [/for]       → 1 4 9</code></pre>
+<pre><code class="language-ldt">Subtotal: [= @price * @qty]
+[set total = [= @price * @qty + 5]]      capture a computed value
+[for n in 1 to 3][= @n * @n] [/for]       → 1 4 9</code></pre>
 
 <ul>
 <li><strong>Integer arithmetic:</strong> <code>+  -  *  /  %</code> — <code>/</code> truncates toward zero; <code>* / %</code> bind tighter than <code>+ -</code>; <code>( )</code> groups; unary <code>-</code> negates. Operands must be integers (a non-integer, or <code>/ 0</code>, is an error).</li>
-<li>The <strong>comparison and boolean operators</strong> work too (<code>==</code>, <code>&lt;</code>, <code>and</code>, <code>not</code>, <code>defined</code>, …); a true/false result renders as <code>1</code> / <code>0</code> — handy for flags: <code>[set adult = @(@age >= 18)]</code>.</li>
-<li><strong><code>count @array</code></strong> gives an array's length (undefined → <code>0</code>, a scalar → error). It's an expression operator, so it works in <code>@()</code> <strong>and</strong> in <code>[if]</code> conditions:
-<pre><code class="language-ldt">You have @(count @items) item[if count @items != 1]s[/if].
+<li>The <strong>comparison and boolean operators</strong> work too (<code>==</code>, <code>&lt;</code>, <code>and</code>, <code>not</code>, <code>defined</code>, …); a true/false result renders as <code>1</code> / <code>0</code> — handy for flags: <code>[set adult = [= @age >= 18]]</code>.</li>
+<li><strong><code>count @array</code></strong> gives an array's length (undefined → <code>0</code>, a scalar → error). It's an expression operator, so it works in <code>[= ]</code> <strong>and</strong> in <code>[if]</code> conditions:
+<pre><code class="language-ldt">You have [= count @items] item[if count @items != 1]s[/if].
 [if count @cart > 0]…[/if]</code></pre>
 </li>
-<li>A literal <code>@(</code> is written <code>\@(</code>.</li>
+<li>A literal <code>[=</code> is written <code>\[=</code>.</li>
 </ul>
 
-<p>The one thing to know: inside <code>@(...)</code>, <code>-</code> is subtraction, so an unquoted bareword with a hyphen (<code>some-value</code>) must be quoted (<code>"some-value"</code>). Plain <code>[if]</code>/<code>[for]</code> conditions don't enable arithmetic, so hyphenated barewords keep working there unchanged. See <code>examples/expressions.ldt</code>.</p>
+<p>The one thing to know: inside <code>[= ]</code>, <code>-</code> is subtraction, so an unquoted bareword with a hyphen (<code>some-value</code>) must be quoted (<code>"some-value"</code>). Plain <code>[if]</code>/<code>[for]</code> conditions don't enable arithmetic, so hyphenated barewords keep working there unchanged. See <code>examples/expressions.ldt</code>.</p>
 </section>
 
 <section id="filters">
 <h2>Filters</h2>
 
-<p>A postfix pipe chain transforms a value on its way out. It works in both <code>@{ ... }</code> and <code>@( ... )</code>; args follow a <code>:</code>, separated by commas, and each arg is a <strong>full expression</strong>:</p>
+<p>A postfix pipe chain transforms a value on its way out. It lives in <code>[= ]</code>; args follow a <code>:</code>, separated by commas, and each arg is a <strong>full expression</strong>:</p>
 
-<pre><code class="language-ldt">@{name | trim | upper}
-@{items | join: ", "}
-@{price | round: @precision}
-@{text | truncate: @width - 2, "…"}
-@(count @cart * 10 | abs)</code></pre>
+<pre><code class="language-ldt">[= @name | trim | upper]
+[= @items | join: ", "]
+[= @price | round: @precision]
+[= @text | truncate: @width - 2, "…"]
+[= count @cart * 10 | abs]</code></pre>
 
 <table>
 <thead><tr><th>Filter</th><th>Behavior</th></tr></thead>
@@ -224,7 +233,7 @@
 <li>Filters apply to the <strong>finished value</strong> — compute first, then pipe.</li>
 <li>Arrays flow through the chain (into <code>join</code>/<code>first</code>/<code>last</code>), but the final result must be a scalar — an array at the end is an error ("add a join").</li>
 <li><code>default</code> also satisfies <code>--strict</code> for an undefined path.</li>
-<li>Filters are <strong>not</strong> available in <code>[if]</code>/<code>[for]</code> tag conditions — filter into a <code>[set]</code> first, or use <code>@( ... )</code>.</li>
+<li>Filters are <strong>not</strong> available in <code>[if]</code>/<code>[for]</code> tag conditions — filter into a <code>[set]</code> first, or use <code>[= ]</code>.</li>
 <li>A <code>|</code> in plain text is literal, as always.</li>
 </ul>
 
@@ -236,12 +245,12 @@
 
 <p>A <code>\</code> before any <strong>non-alphanumeric</strong> character emits it literally, so any delimiter can be written verbatim:</p>
 
-<pre><code class="language-ldt">\@{x}     → @{x}       (a literal interpolation, not resolved)
+<pre><code class="language-ldt">\[= @x]   → [= @x]     (a literal emit tag, not evaluated)
 \[set …]  → [set …]    (a literal tag)
-\[/set]   \]   \#]     → literal value/comment closers
+\[/set]   \[   \]   \#]  → literal brackets and closers
 \\        → \</code></pre>
 
-<p>A <code>\</code> before a letter, digit, or end-of-line is itself literal, so ordinary text and Windows paths (<code>C:\Users</code>) are untouched. In <code>[if]</code>/<code>[for]</code>/<code>@()</code> expressions there are no bare escapes — use a <code>"quoted"</code> string for special characters; <strong>inside</strong> such a string the same escape rule applies (<code>\"</code> for a quote, <code>\\</code> for a backslash), and strings may span lines. See <code>examples/limitations.ldt</code>.</p>
+<p>A <code>\</code> before a letter, digit, or end-of-line is itself literal, so ordinary text and Windows paths (<code>C:\Users</code>) are untouched — and <code>@</code> is never special in text, so it needs no escaping at all. In expressions (<code>[if]</code>, <code>[for]</code>, <code>[= ]</code>) there are no bare escapes — use a <code>"quoted"</code> string for special characters; <strong>inside</strong> such a string the same escape rule applies (<code>\"</code> for a quote, <code>\\</code> for a backslash), and strings may span lines. See <code>examples/limitations.ldt</code>.</p>
 </section>
 
 <section id="feeding-data-in">
@@ -251,7 +260,7 @@
 
 <p>From PHP:</p>
 
-<pre><code class="language-php">echo Ldt::render('Hello @{user.first}!', ['user' => ['first' => 'Ada']]);
+<pre><code class="language-php">echo Ldt::render('Hello [= @user.first]!', ['user' => ['first' => 'Ada']]);
 echo Ldt::renderFile('examples/data.ldt', ['cart' => [['item' => 'Pen', 'qty' => 2]]]);</code></pre>
 
 <p>From the CLI:</p>
@@ -266,7 +275,7 @@ ldt --json data.json --set site=X f.ldt  # later flags win</code></pre>
 <section id="strict-mode">
 <h2>Strict mode</h2>
 
-<p><code>--strict</code> (CLI) / <code>strict: true</code> (PHP) turns an undefined <code>@{path}</code> into an error instead of empty. A <code>default:</code> filter satisfies it; any other filter chain on an undefined path still errors. Refs inside <code>@()</code> resolve to empty rather than erroring (and then fail arithmetic if misused).</p>
+<p><code>--strict</code> (CLI) / <code>strict: true</code> (PHP) turns an undefined <code>[= @path]</code> into an error instead of empty. A <code>default:</code> filter satisfies it; any other filter chain on an undefined path still errors. Refs inside a <em>computed</em> expression resolve to empty rather than erroring (and then fail arithmetic if misused).</p>
 </section>
 
 <section id="run-it">
@@ -283,7 +292,7 @@ php tests/run.php                        # run the test suite</code></pre>
 <pre><code class="language-php">require 'autoload.php';
 use Ldtlang\Ldt;
 
-echo Ldt::render('Hello [set who = world]@{who}!');
+echo Ldt::render('Hello [set who = world][= @who]!');
 echo Ldt::renderFile('examples/assignments.ldt');</code></pre>
 </section>
 
@@ -301,19 +310,19 @@ echo Ldt::renderFile('examples/assignments.ldt');</code></pre>
 <table>
 <thead><tr><th>Not possible</th><th>Why</th><th>Instead</th></tr></thead>
 <tbody>
-<tr><td>bare <code>@name</code> interpolating in body text</td><td>would mangle every email/@-mention</td><td><code>@{name}</code></td></tr>
-<tr><td><code>@{…}</code> inside expressions</td><td>redundant — expressions self-delimit</td><td>bare <code>@name</code></td></tr>
-<tr><td>filters in <code>[if]</code>/<code>[for]</code> conditions</td><td>keeps conditions simple</td><td>filter into a <code>[set]</code>, or use <code>@()</code></td></tr>
-<tr><td>float arithmetic (<code>@(1.5 + 1)</code>)</td><td>integer-only by design (no float-formatting swamp)</td><td>keep math integer; <code>round</code> formats decimals</td></tr>
-<tr><td>nested <code>@( @( ) )</code></td><td>one expression level</td><td>plain <code>( )</code> grouping</td></tr>
-<tr><td><code>@()</code> as a range bound</td><td>bounds are literals or refs</td><td><code>[set hi = @(…)]</code> first</td></tr>
-<tr><td>unquoted <code>|</code> <code>:</code> <code>,</code> or hyphens-in-<code>@()</code> inside barewords</td><td>they are expression tokens</td><td>quote: <code>"10:30"</code>, <code>"super-admin"</code></td></tr>
+<tr><td>bare <code>@name</code> interpolating in body text</td><td>would mangle every email/@-mention</td><td><code>[= @name]</code></td></tr>
+<tr><td>filters in <code>[if]</code>/<code>[for]</code> conditions</td><td>keeps conditions simple</td><td>filter into a <code>[set]</code>, or use <code>[= ]</code></td></tr>
+<tr><td>float arithmetic (<code>[= 1.5 + 1]</code>)</td><td>integer-only by design (no float-formatting swamp)</td><td>keep math integer; <code>round</code> formats decimals</td></tr>
+<tr><td>nested <code>[= [= ] ]</code></td><td>one expression level</td><td>plain <code>( )</code> grouping</td></tr>
+<tr><td><code>[= ]</code> as a range bound</td><td>bounds are literals or refs</td><td><code>[set hi = [= …]]</code> first</td></tr>
+<tr><td>unquoted <code>|</code> <code>:</code> <code>,</code> or hyphens-in-<code>[= ]</code> inside barewords</td><td>they are expression tokens</td><td>quote: <code>"10:30"</code>, <code>"super-admin"</code></td></tr>
 <tr><td>a raw <code>]</code>/<code>[/set]</code>/<code>#]</code> inside an unquoted value or comment</td><td>delimiter-based scanning</td><td>quote the value (<code>"a ] b"</code>) or escape: <code>\]</code>, <code>\[/set]</code>, <code>\#]</code></td></tr>
+<tr><td>an unpaired literal <code>[</code> in a self-closing value</td><td>the scan pairs <code>[ ]</code> so constructs nest</td><td>escape it: <code>\[</code></td></tr>
 <tr><td>a value starting with a bare <code>"</code> that isn't properly quoted</td><td>strict quoting — fail loud, never mangle</td><td>quote the whole value, or escape: <code>\"</code></td></tr>
 <tr><td>rendering an array directly</td><td>arrays aren't text</td><td><code>| join: ", "</code></td></tr>
 <tr><td>nested comments</td><td>first <code>#]</code> closes</td><td><code>\#]</code> for a literal closer</td></tr>
 <tr><td>bare <code>\</code> escapes in expressions (outside strings)</td><td>quoting covers it</td><td><code>"quoted strings"</code> — with <code>\"</code>/<code>\\</code> inside</td></tr>
-<tr><td>case-insensitive substring tests</td><td>byte-wise like <code>==</code></td><td><code>[set e = @{x | lower}]</code> then test</td></tr>
+<tr><td>case-insensitive substring tests</td><td>byte-wise like <code>==</code></td><td><code>[set e = [= @x | lower]]</code> then test</td></tr>
 </tbody>
 </table>
 </section>
@@ -330,7 +339,7 @@ echo Ldt::renderFile('examples/assignments.ldt');</code></pre>
 <tr><td>macros / functions</td><td>the line where a template becomes a program</td><td>loops + sets</td></tr>
 <tr><td>switch / case</td><td>redundant surface</td><td><code>[if]</code>/<code>[elseif]</code> chains</td></tr>
 <tr><td>custom / host-registered filters</td><td>API-surface growth</td><td>the built-in twelve</td></tr>
-<tr><td>boolean / null literals</td><td>two-type model already covers them; <code>true</code> would break bareword compares</td><td>flags are <code>1</code>/empty; undefined is the null</td></tr>
+<tr><td>boolean / null literals</td><td>two-type model already covers them; <code>true</code> would break bareword compares</td><td>flags are <code>1</code>/<code>0</code>; undefined is the null</td></tr>
 <tr><td>regex matching</td><td>a second syntax + escaping clash</td><td><code>contains</code> / <code>starts with</code> / <code>ends with</code></td></tr>
 <tr><td>ternary <code>?:</code></td><td>two mechanisms already exist</td><td>inline <code>[if]…[else]…[/if]</code> and <code>default:</code></td></tr>
 </tbody>
@@ -340,7 +349,7 @@ echo Ldt::renderFile('examples/assignments.ldt');</code></pre>
 <section id="status">
 <h2>Status</h2>
 
-<p>Assignment, interpolation (<code>@{path}</code> in text, bare <code>@path</code> in expressions, <code>| default:</code> fallbacks), inline expressions (<code>@(expr)</code> with integer arithmetic + comparison/logic), filters (<code>| upper</code>, <code>| join: ", "</code>, …, in both <code>@{}</code> and <code>@()</code>), nested dot-paths, comments, conditionals, loops (arrays + <code>to</code>/<code>by</code> ranges, <code>break</code>/<code>continue</code>, nested iteration, <code>@{loop.*}</code> metadata), an external data context (PHP array / CLI <code>--set</code> / <code>--json</code>), whitespace trimming, and <code>\</code> escaping are implemented.</p>
+<p>Assignment, the <code>[= expr]</code> emit tag (plain-reference interpolation, integer arithmetic + comparison/logic, <code>| default:</code> fallbacks and the full filter set), nested dot-paths, comments, conditionals, loops (arrays + <code>to</code>/<code>by</code> ranges, <code>break</code>/<code>continue</code>, nested iteration, <code>@loop.*</code> metadata), an external data context (PHP array / CLI <code>--set</code> / <code>--json</code>), whitespace trimming, and <code>\</code> escaping are implemented.</p>
 
 <p>Planned work and deliberately-excluded features are tracked in <a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">TASKS.md</a>.</p>
 </section>
@@ -350,40 +359,37 @@ echo Ldt::renderFile('examples/assignments.ldt');</code></pre>
 
 <p>The complete list of edge cases and "gotchas" to be aware of. Most are inherent to a delimiter-based embeddable language; each has a clear workaround. For a runnable escaping demo see <code>examples/limitations.ldt</code>.</p>
 
-<h3 id="caveat-1">1. Reference forms are context-exclusive</h3>
+<h3 id="caveat-1">1. <code>@</code> reads; writes are bare; text is literal</h3>
 
-<p>There are two ways to name a variable, and they do <strong>not</strong> overlap:</p>
+<p>One rule covers every position:</p>
 
 <table>
-<thead><tr><th>Context</th><th>Form</th><th>A bare <code>@</code> is…</th></tr></thead>
+<thead><tr><th>Position</th><th>Form</th><th>A bare <code>@</code> is…</th></tr></thead>
 <tbody>
-<tr><td>Body text and <code>[set]</code> values</td><td><code>@{path}</code> only</td><td><strong>literal</strong> (so <code>me@site.com</code> is left intact)</td></tr>
-<tr><td>Expressions — <code>[if]</code>, <code>[for]</code>, <code>@()</code></td><td>bare <code>@path</code> only</td><td>the reference</td></tr>
+<tr><td>Body text and <code>[set]</code> values</td><td>emit with <code>[= @path]</code></td><td><strong>literal</strong> (so <code>me@site.com</code> and <code>(@ada)</code> are left intact)</td></tr>
+<tr><td>Expressions — <code>[if]</code>, <code>[for … in]</code>, <code>[= ]</code></td><td>bare <code>@path</code></td><td>the reference</td></tr>
+<tr><td>Write targets — <code>[set]</code>, <code>[unset]</code>, <code>[for k, v]</code></td><td>bare name, no <code>@</code></td><td>—</td></tr>
 </tbody>
 </table>
 
 <ul>
-<li><strong>A bare <code>@name</code> in body text does <em>not</em> interpolate</strong> — it prints literally. Use <code>@{name}</code> to interpolate in text.
+<li><strong>A bare <code>@name</code> in body text does <em>not</em> interpolate</strong> — it prints literally. Use <code>[= @name]</code> to emit in text.
 <pre><code class="language-ldt">value @a here      →  value @a here      (literal)
-value @{a} here    →  value X here       (interpolated)</code></pre>
+value [= @a] here  →  value X here       (emitted)</code></pre>
 </li>
-<li><strong>The closed <code>@{name}</code> is rejected inside an expression</strong> — use bare <code>@name</code>.
-<pre><code class="language-ldt">[if @{role}]…      →  error: "use a bare @name inside an expression"
-[if @role]…        →  ok</code></pre>
-</li>
+<li><strong>A write target never takes <code>@</code></strong> — <code>[set @name = x]</code> is an error ("expected a variable path after [set"). The name is where the value goes, not a value being read.</li>
 </ul>
 
 <h3 id="caveat-2">2. Writing a delimiter literally needs <code>\</code></h3>
 
-<p>Every construct's opener/closer is meaningful, so to print one literally, escape it. The rule: <strong><code>\</code> before a non-alphanumeric character emits that character literally</strong>; before a letter, digit, or end-of-line the <code>\</code> is itself literal (so <code>C:\Users</code> and ordinary prose backslashes survive).</p>
+<p>Every construct's opener/closer is meaningful, so to print one literally, escape it. The rule: <strong><code>\</code> before a non-alphanumeric character emits that character literally</strong>; before a letter, digit, or end-of-line the <code>\</code> is itself literal (so <code>C:\Users</code> and ordinary prose backslashes survive). <code>@</code> is not a delimiter — it never needs escaping in text.</p>
 
 <table>
 <thead><tr><th>To print</th><th>Write</th></tr></thead>
 <tbody>
-<tr><td><code>@{</code> (interpolation)</td><td><code>\@{</code></td></tr>
-<tr><td><code>@(</code> (expression)</td><td><code>\@(</code></td></tr>
+<tr><td><code>[=</code> (an emit tag)</td><td><code>\[=</code></td></tr>
 <tr><td>a tag like <code>[set …]</code>, <code>[if …]</code>, <code>[# …</code></td><td><code>\[set …]</code>, <code>\[if …]</code>, <code>\[#</code></td></tr>
-<tr><td>a <code>]</code> in an unquoted <code>=</code> value, or <code>[/set]</code> in a block value</td><td><code>\]</code>, <code>\[/set]</code></td></tr>
+<tr><td>a <code>]</code> or unpaired <code>[</code> in an unquoted <code>=</code> value, or <code>[/set]</code> in a block value</td><td><code>\]</code>, <code>\[</code>, <code>\[/set]</code></td></tr>
 <tr><td>a comment closer <code>#]</code> (inside a comment)</td><td><code>\#]</code></td></tr>
 <tr><td>a literal backslash</td><td><code>\\</code></td></tr>
 </tbody>
@@ -391,7 +397,7 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 
 <h3 id="caveat-3">3. Escapes in expressions live <em>inside</em> quoted strings</h3>
 
-<p>Bare <code>\</code> escapes don't exist in <code>[if]</code>, <code>[for]</code>, or <code>@(...)</code> — but <strong>inside a <code>"..."</code> string literal the universal escape rule applies</strong> (<code>\</code> before a non-alphanumeric char yields it; before a letter, digit or end-of-line it stays literal), and strings may span newlines:</p>
+<p>Bare <code>\</code> escapes don't exist in <code>[if]</code>, <code>[for]</code>, or <code>[= ]</code> — but <strong>inside a <code>"..."</code> string literal the universal escape rule applies</strong> (<code>\</code> before a non-alphanumeric char yields it; before a letter, digit or end-of-line it stays literal), and strings may span newlines:</p>
 
 <pre><code class="language-ldt">[if @x == "a]b"]…             quotes hold the special character
 [if @x == "say \"hi\""]…      an escaped quote inside the string
@@ -401,7 +407,7 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 
 <ul>
 <li>A block <code>[set x]…[/set]</code> value stops at the <strong>first</strong> literal <code>[/set]</code> — unless the body is a quoted whole value, which protects it: <code>[set x]"a [/set] b"[/set]</code> needs no escape.</li>
-<li>A self-closing <code>[set x = …]</code> value stops at the <strong>first</strong> unescaped <code>]</code> (quotes protect it: <code>[set x = "a ] b"]</code> needs no escape).</li>
+<li>A self-closing <code>[set x = …]</code> value is scanned <strong>bracket-aware</strong>: nested <code>[…]</code> constructs pass through whole, and the value ends at the first <code>]</code> at depth 0. Consequence: an <em>unpaired</em> literal <code>[</code> or <code>]</code> must be escaped (<code>\[</code> / <code>\]</code>) or the value quoted (<code>[set x = "a ] b"]</code>).</li>
 <li>A <code>[# … #]</code> comment stops at the <strong>first</strong> literal <code>#]</code>. <strong>Quoting does not protect it</strong> (quotes mean nothing in comments) — escape it as <code>\#]</code>.</li>
 <li>The <code>#</code> cannot be shared between opener and closer: <code>[#]</code> is an <em>unterminated</em> comment. The minimal comment is <code>[##]</code>.</li>
 </ul>
@@ -431,7 +437,7 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 <li>Reset-a-container idiom: <code>[unset g][set g.k = v]</code> (a plain <code>[set g = ]</code> would make <code>g</code> a scalar and later <code>g.k</code> sets would error).</li>
 </ul>
 
-<h3 id="caveat-4d">4d. Block values are mini-templates — the boundaries</h3>
+<h3 id="caveat-4d">4d. Values are mini-templates — the boundaries</h3>
 
 <ul>
 <li>A <code>[set]</code> value renders exactly like body text, with two boundaries: a <code>[break]</code>/<code>[continue]</code> inside a value binds only to a <code>[for]</code> <em>inside the same value</em> — it cannot break a loop outside it; and a nested <em>block</em> set errors loudly (self-closing sets nest fine).</li>
@@ -440,14 +446,14 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 <li>The argument-less markers (<code>[else]</code>, <code>[/if]</code>, <code>[/for]</code>, <code>[break]</code>, <code>[continue]</code>) accept whitespace before their <code>]</code> too — <code>[else ]</code> is the tag, <code>[else x]</code> stays literal. The value/comment closers <code>[/set]</code> and <code>#]</code> remain exact sentinels: no interior whitespace.</li>
 </ul>
 
-<h3 id="caveat-5">5. Expressions <code>@(...)</code> are integer-only</h3>
+<h3 id="caveat-5">5. Arithmetic in <code>[= ]</code> is integer-only</h3>
 
 <ul>
 <li>Only <strong>integers</strong> are accepted. A non-integer operand — including a float <em>literal</em> like <code>5.0</code> — is an error:
-<pre><code class="language-ldt">@(5.0 + 1)         →  error: "arithmetic requires integer operands, got '5.0'"</code></pre>
+<pre><code class="language-ldt">[= 5.0 + 1]        →  error: "arithmetic requires integer operands, got '5.0'"</code></pre>
 </li>
-<li><code>/</code> is <strong>integer division</strong> (truncates toward zero): <code>@(10 / 3)</code> → <code>3</code>.</li>
-<li>Division or modulo by zero is an error: <code>@(5 / 0)</code>, <code>@(5 % 0)</code>.</li>
+<li><code>/</code> is <strong>integer division</strong> (truncates toward zero): <code>[= 10 / 3]</code> → <code>3</code>.</li>
+<li>Division or modulo by zero is an error: <code>[= 5 / 0]</code>, <code>[= 5 % 0]</code>.</li>
 <li>Float math is not supported (yet). Compose results into variables and keep everything integer.</li>
 </ul>
 
@@ -461,10 +467,10 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 <h3 id="caveat-5c">5c. Filters</h3>
 
 <ul>
-<li><strong>Filters work only in <code>@{}</code> and <code>@()</code></strong> — in an <code>[if]</code>/<code>[for]</code> tag condition a <code>|</code> is an error ("filters are not supported in a tag condition"). Filter into a <code>[set]</code> first, or use <code>@( ... )</code>.</li>
-<li><strong><code>|</code>, <code>:</code> and <code>,</code> are now expression tokens.</strong> An unquoted bareword cannot contain them — quote such literals (<code>[if @t == "10:30"]</code>, <code>join: ", "</code>).</li>
-<li><strong>Filter args are full expressions</strong>, so inside them <code>-</code> is subtraction and barewords with hyphens/commas must be quoted (same rule as <code>@()</code>).</li>
-<li><strong>A plain <code>@ref</code> argument reads the raw value</strong> (like the chain input), so an array can be a <code>default:</code> fallback: <code>@{list | default: @fallbackList | join: ", "}</code>. Scalar-expecting arguments (<code>truncate</code> / <code>round</code> / <code>join</code>) reject an array argument loudly.</li>
+<li><strong>Filters work only in <code>[= ]</code></strong> — in an <code>[if]</code>/<code>[for]</code> tag condition a <code>|</code> is an error ("filters are not supported in a tag condition"). Filter into a <code>[set]</code> first, or use <code>[= ]</code>.</li>
+<li><strong><code>|</code>, <code>:</code> and <code>,</code> are expression tokens.</strong> An unquoted bareword cannot contain them — quote such literals (<code>[if @t == "10:30"]</code>, <code>join: ", "</code>).</li>
+<li><strong>Filter args are full expressions</strong>, so inside them <code>-</code> is subtraction and barewords with hyphens/commas must be quoted (same rule as the rest of <code>[= ]</code>).</li>
+<li><strong>A plain <code>@ref</code> argument reads the raw value</strong> (like the chain input), so an array can be a <code>default:</code> fallback: <code>[= @list | default: @fallbackList | join: ", "]</code>. Scalar-expecting arguments (<code>truncate</code> / <code>round</code> / <code>join</code>) reject an array argument loudly.</li>
 <li><strong><code>default:</code> evaluates its argument lazily</strong> — only when the fallback actually fires. An error inside an unused fallback (say, a division by zero) never surfaces; every other filter needs its arguments and evaluates them eagerly.</li>
 <li><strong>The final chain result must be a scalar.</strong> Arrays may flow <em>through</em> the chain (to <code>join</code>/<code>first</code>/<code>last</code>), but an array at the end is an error.</li>
 <li><strong><code>default</code> vs <code>--strict</code>:</strong> a <code>default</code> filter satisfies strict mode for an undefined path; any other chain on an undefined path still errors under <code>--strict</code>.</li>
@@ -472,57 +478,57 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 <li>Filter names are only reserved <strong>after a <code>|</code></strong> — no new global reserved words.</li>
 <li><strong>Case filters are ASCII-only</strong>: <code>upper</code> / <code>lower</code> / <code>capitalize</code> transform <code>a–z</code> / <code>A–Z</code> only; every other byte passes through (<code>é</code> stays <code>é</code>) — the same dependency-free byte policy as the substring operators.</li>
 <li><strong><code>truncate</code> counts bytes but never splits a UTF-8 character</strong>: when the cut lands inside a multi-byte sequence, the incomplete tail is dropped before the suffix is added (a complete character at the edge is kept). Assumes UTF-8 text — a stray Latin-1 high byte at the cut is dropped too.</li>
-<li><strong><code>round</code> / <code>abs</code> are float-based</strong>: beyond ~15 significant digits PHP float precision applies, and a huge result renders in scientific notation (<code>1.23…E+29</code>) — which is then <em>not</em> a Number by the text rule, so later arithmetic on it errors. Keep filter math at ordinary magnitudes; <code>@()</code> integer arithmetic is exact within the platform integer range.</li>
+<li><strong><code>round</code> / <code>abs</code> are float-based</strong>: beyond ~15 significant digits PHP float precision applies, and a huge result renders in scientific notation (<code>1.23…E+29</code>) — which is then <em>not</em> a Number by the text rule, so later arithmetic on it errors. Keep filter math at ordinary magnitudes; <code>[= ]</code> integer arithmetic is exact within the platform integer range.</li>
 </ul>
 
 <h3 id="caveat-5d">5d. Substring operators</h3>
 
 <ul>
-<li><code>contains</code> / <code>starts with</code> / <code>ends with</code> are <strong>case-sensitive</strong> and byte-wise (like string <code>==</code>). For a case-insensitive test, lowercase first: <code>[set e = @{email | lower}][if @e contains …]</code>.</li>
+<li><code>contains</code> / <code>starts with</code> / <code>ends with</code> are <strong>case-sensitive</strong> and byte-wise (like string <code>==</code>). For a case-insensitive test, lowercase first: <code>[set e = [= @email | lower]][if @e contains …]</code>.</li>
 <li>They are <strong>context-sensitive</strong>, not reserved: only recognized in operator position, so <code>[if @x == contains]</code> still compares against the literal word.</li>
 <li>An <strong>empty needle is always found</strong> (<code>@x contains ""</code> is true), matching PHP.</li>
 <li><code>starts</code> / <code>ends</code> <strong>require</strong> the <code>with</code> (<code>starts "x"</code> is an error).</li>
 </ul>
 
-<h3 id="caveat-6">6. Inside <code>@()</code>, <code>-</code> is subtraction</h3>
+<h3 id="caveat-6">6. Inside <code>[= ]</code>, <code>-</code> is subtraction</h3>
 
-<p>Because arithmetic is on inside <code>@(...)</code>, a hyphen is the subtract operator, so an unquoted bareword with a hyphen is parsed as arithmetic and fails. Quote it:</p>
+<p>Because arithmetic is on inside <code>[= ]</code>, a hyphen is the subtract operator, so an unquoted bareword with a hyphen is parsed as arithmetic and fails. Quote it:</p>
 
-<pre><code class="language-ldt">@(@role == super-admin)      →  error (parsed as super − admin)
-@(@role == "super-admin")    →  ok</code></pre>
+<pre><code class="language-ldt">[= @role == super-admin]      →  error (parsed as super − admin)
+[= @role == "super-admin"]    →  ok</code></pre>
 
-<p>The same trade-off hits a <strong>negative array index</strong>: <code>@a.-1</code> works in <code>[if]</code> and as <code>@{a.-1}</code> in text, but inside <code>@(...)</code> the <code>-</code> reads as subtraction, so <code>@(@a.-1)</code> is an error. Read it outside the expression first (<code>[set x = @{a.-1}]</code>).</p>
+<p>The same trade-off hits a <strong>negative array index</strong>: <code>@a.-1</code> works in <code>[if]</code>/<code>[for]</code> conditions (no arithmetic there), but inside <code>[= ]</code> the <code>-</code> reads as subtraction, so <code>[= @a.-1]</code> is an error. To emit such a slot, reach it by iteration (<code>[for k, v in @a][if @k == -1][= @v][/if][/for]</code>) — or avoid negative keys in data you need to print directly.</p>
 
 <p>(Plain <code>[if]</code>/<code>[for]</code> conditions do <strong>not</strong> enable arithmetic, so hyphenated barewords like <code>[if @x == some-value]</code> keep working there unchanged.)</p>
 
-<h3 id="caveat-7">7. <code>@(...)</code> cannot be nested, and cannot be a range bound</h3>
+<h3 id="caveat-7">7. <code>[= ]</code> cannot be nested in itself, and cannot be a range bound</h3>
 
 <ul>
-<li><strong>No nested <code>@()</code></strong> — use plain grouping <code>( )</code> instead:
-<pre><code class="language-ldt">@(@(1 + 1) + 1)    →  error
-@((1 + 1) + 1)     →  ok</code></pre>
-</li>
-<li><strong>A range bound cannot be an <code>@()</code> expression</strong> — bounds are integer literals or bare <code>@refs</code>. Compute first, then use the variable:
-<pre><code class="language-ldt">[for n in 1 to @(@x + 1)]…            →  error
-[set hi = @(@x + 1)][for n in 1 to @hi]…   →  ok</code></pre>
+<li><strong>No <code>[= ]</code> inside <code>[= ]</code></strong> — the inside is already expression context; use plain grouping <code>( )</code>:
+<pre><code class="language-ldt">[= [= 1 + 1] + 1]   →  error
+[= (1 + 1) + 1]     →  ok</code></pre>
+(Nesting <code>[= ]</code> inside a <code>[set … = …]</code> <em>value</em> is fine — a value is text, not an expression.)</li>
+<li><strong>A range bound cannot be an <code>[= ]</code> expression</strong> — bounds are integer literals or bare <code>@refs</code>. Compute first, then use the variable:
+<pre><code class="language-ldt">[for n in 1 to [= @x + 1]]…            →  error
+[set hi = [= @x + 1]][for n in 1 to @hi]…   →  ok</code></pre>
 </li>
 </ul>
 
-<h3 id="caveat-8">8. <code>--strict</code> guards only <code>@{path}</code> interpolations</h3>
+<h3 id="caveat-8">8. <code>--strict</code> guards only plain-reference emits</h3>
 
-<p><code>--strict</code> makes an undefined <code>@{path}</code> interpolation an error (unless its chain has a <code>default:</code>). Everywhere else undefined is a <strong>value</strong>, not an error — conditions and loops are the existence tests, so they stay silent by design:</p>
+<p><code>--strict</code> makes an undefined <code>[= @path]</code> (a plain reference, filtered or not) an error — unless its chain has a <code>default:</code>. Everywhere else undefined is a <strong>value</strong>, not an error — conditions and loops are the existence tests, so they stay silent by design:</p>
 
-<pre><code class="language-bash">--strict  x@{missing}y        →  error: undefined reference
---strict  [if @missing]…      →  takes the false branch (no error)
---strict  [for v in @missing] →  zero iterations (no error)
---strict  x@(@missing)y       →  xy   (ref → empty; using it in arithmetic
-                                       still fails: "…got ''")</code></pre>
+<pre><code class="language-bash">--strict  x[= @missing]y        →  error: undefined reference
+--strict  [if @missing]…        →  takes the false branch (no error)
+--strict  [for v in @missing]   →  zero iterations (no error)
+--strict  x[= @missing + 0]y    →  error — a computed expression reads the
+                                   ref as '' and arithmetic rejects it</code></pre>
 
-<p>A <em>defined</em> value never errors under strict either — including an array rendered directly: <code>@{arr}</code> gives <code>''</code> (arrays are not renderable; add a <code>join</code> or iterate).</p>
+<p>A <em>defined</em> value never errors under strict either — including an array rendered directly: <code>[= @arr]</code> gives <code>''</code> (arrays are not renderable; add a <code>join</code> or iterate).</p>
 
-<p>Filter <strong>arguments</strong> are expressions, so they are never strict-guarded — including a <code>default:</code> fallback: <code>@{missing | default: @alsoMissing}</code> renders empty under <code>--strict</code>, with no error (the chain has a <code>default:</code>, and the undefined fallback reads as <code>''</code>).</p>
+<p>Filter <strong>arguments</strong> are expressions, so they are never strict-guarded — including a <code>default:</code> fallback: <code>[= @missing | default: @alsoMissing]</code> renders empty under <code>--strict</code>, with no error (the chain has a <code>default:</code>, and the undefined fallback reads as <code>''</code>).</p>
 
-<p>The guard follows <code>@{}</code> wherever it appears — an undefined interpolation inside a <code>[set]</code> value errors too, at its exact template coordinates.</p>
+<p>The guard follows the plain-reference emit wherever it appears — an undefined <code>[= @path]</code> inside a <code>[set]</code> value errors too, at its exact template coordinates.</p>
 
 <h3 id="caveat-9">9. Data types: a value is String or Number by its text</h3>
 
@@ -530,18 +536,18 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 
 <ul>
 <li><code>007</code> <strong>renders</strong> as <code>007</code> but <strong>compares</strong> as <code>7</code>:
-<pre><code class="language-ldt">[set id = 007]@{id} but @(@id == 7)     →  007 but 1</code></pre>
+<pre><code class="language-ldt">[set id = 007][= @id] but [= @id == 7]     →  007 but 1</code></pre>
 </li>
 <li>Comparison is type-aware: both operands numeric → numeric (<code>5 == 5.0</code>), otherwise lexicographic (<code>apple &lt; banana</code>).</li>
 <li><strong>Falsy</strong> = empty string, undefined, and numeric zero (<code>0</code>, <code>0.0</code>, <code>-0</code>, <code>+0</code>). Everything else is truthy — including a non-numeric <code>"0x"</code>.</li>
-<li><strong>Booleans textualize as <code>1</code> / <code>0</code></strong> — a comparison result stored or emitted is a Number (<code>[set f = @(1 &gt; 2)]@{f}</code> → <code>0</code>), so <code>@((…) == 0)</code> works.</li>
+<li><strong>Booleans textualize as <code>1</code> / <code>0</code></strong> — a comparison result stored or emitted is a Number (<code>[set f = [= 1 &gt; 2]][= @f]</code> → <code>0</code>), so <code>[= (…) == 0]</code> works.</li>
 </ul>
 
 <h3 id="caveat-9b">9b. One falsy rule: <code>[if]</code> and <code>default:</code> agree</h3>
 
 <ul>
 <li>The fallback (<code>| default: "F"</code>) triggers exactly when <code>[if @x]</code> would be false: undefined, empty string, numeric zero, or an empty array. Its argument is a full expression (<code>| default: @fb</code>), and chained defaults cascade through falsy values.</li>
-<li>Consequence: <strong>a genuine <code>0</code> cannot survive an attached fallback</strong> — <code>[set n = 0]@{n | default: "-"}</code> renders <code>-</code>. To display a zero, don't attach a fallback (or guard with <code>[if defined @n]</code>).</li>
+<li>Consequence: <strong>a genuine <code>0</code> cannot survive an attached fallback</strong> — <code>[set n = 0][= @n | default: "-"]</code> renders <code>-</code>. To display a zero, don't attach a fallback (or guard with <code>[if defined @n]</code>).</li>
 <li><code>007</code> (numeric 7) and <code>"0x"</code> (non-numeric) are truthy and pass through.</li>
 <li>A bare reference to a <strong>non-empty array</strong> is truthy in <code>[if]</code> / <code>not</code> / <code>and</code> / <code>or</code> (an empty array is falsy) — the same rule <code>default:</code> applies, so the two always agree here too. In a <strong>comparison</strong> (or as text) an array still reads as <code>''</code>; test presence with <code>[if @items]</code>, size with <code>count @items</code>.</li>
 <li>Strict mode still errors only on <strong>undefined</strong> without a fallback; a defined-but-falsy value never errors.</li>
@@ -551,12 +557,12 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 
 <ul>
 <li><strong>A bare integer is not iterable</strong> — a range needs <code>to</code>: <code>[for n in 5]</code> errors; <code>[for n in 1 to 5]</code> is the range.</li>
-<li><strong>Iterating records:</strong> when a loop value is itself a sub-array, <code>@{v}</code> renders empty (an array isn't directly renderable) but <code>@{v.field}</code> resolves.</li>
+<li><strong>Iterating records:</strong> when a loop value is itself a sub-array, <code>[= @v]</code> renders empty (an array isn't directly renderable) but <code>[= @v.field]</code> resolves.</li>
 <li><strong>Loop variables are block-scoped</strong> — they don't leak, and any prior binding of the same name is restored after the loop.</li>
 <li><strong><code>[break]</code> / <code>[continue]</code> bind to the nearest enclosing loop</strong>, even when nested inside <code>[if]</code>s.</li>
-<li><strong><code>loop</code> is bound inside every <code>[for]</code> body</strong> (for <code>@{loop.index}</code> etc.). A variable of your own named <code>loop</code> is shadowed inside the loop and restored after it — same block-scoping as the loop variables.</li>
+<li><strong><code>loop</code> is bound inside every <code>[for]</code> body</strong> (for <code>[= @loop.index]</code> etc.). A variable of your own named <code>loop</code> is shadowed inside the loop and restored after it — same block-scoping as the loop variables.</li>
 <li><strong><code>loop</code> cannot be a loop <em>variable</em> name</strong> — <code>[for loop in …]</code> (or <code>[for k, loop in …]</code>) is an error: the metadata binding would make the value unreachable. Pick another name; only a pre-existing variable named <code>loop</code> is silently shadowed (previous bullet).</li>
-<li><strong>A range's keys are 0-based positions</strong> — <code>[for k, n in 5 to 7]</code> binds <code>k</code> to <code>0, 1, 2</code> (a range behaves like a list), while <code>@{loop.index}</code> stays 1-based. With an array, <code>k</code> is the array's own key.</li>
+<li><strong>A range's keys are 0-based positions</strong> — <code>[for k, n in 5 to 7]</code> binds <code>k</code> to <code>0, 1, 2</code> (a range behaves like a list), while <code>@loop.index</code> stays 1-based. With an array, <code>k</code> is the array's own key.</li>
 <li><strong>An undefined range <em>bound</em> is an error</strong> — unlike <code>[for v in @missing]</code> (zero iterations, see §8), <code>[for n in 1 to @missing]</code> fails loudly: bounds must be integers, and "no integer" is not a usable bound.</li>
 <li><strong>Range bounds must fit the platform integer</strong> — a literal or <code>@ref</code> bound beyond <code>PHP_INT_MAX</code>/<code>PHP_INT_MIN</code> is a loud error (PHP would otherwise silently saturate it). Ranges ending exactly <em>at</em> the limits work.</li>
 <li><strong>Ranges stream lazily</strong> — <code>[for n in 1 to 1000000000]</code> costs time, never memory: values are produced one at a time and <code>loop.count</code> is computed arithmetically. (Only the loop's own <em>output</em> occupies memory.)</li>
@@ -564,10 +570,10 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 
 <h3 id="caveat-11">11. Whitespace trimming</h3>
 
-<p>A line whose only content is directives/comments (no text, no <code>@{}</code>/<code>@()</code>) is <strong>standalone</strong>: it's removed along with its trailing newline, so a tag on its own line leaves no blank line. A line that also has real text or an interpolation is left untouched. Pass <code>--no-trim</code> to disable this.</p>
+<p>A line whose only content is directives/comments (no text, no <code>[= ]</code> output) is <strong>standalone</strong>: it's removed along with its trailing newline, so a tag on its own line leaves no blank line. A line that also has real text or an emit is left untouched. Pass <code>--no-trim</code> to disable this.</p>
 
 <ul>
-<li><strong>Escaped whitespace does not protect a line</strong> — by the time the trimmer decides, <code>\ </code> (escaped space) is plain whitespace text, so a directive line padded only with escaped spaces still trims. To keep a line, give it visible text or an <code>@{}</code>.</li>
+<li><strong>Escaped whitespace does not protect a line</strong> — by the time the trimmer decides, <code>\ </code> (escaped space) is plain whitespace text, so a directive line padded only with escaped spaces still trims. To keep a line, give it visible text or an <code>[= ]</code>.</li>
 <li><strong>Only <code>\n</code> ends a line.</strong> CRLF files work naturally (the <code>\r</code> trims away with its line), but CR-only line endings (classic Mac) are not line endings: such a file is one long line — nothing trims, and the <code>\r</code>s render through as ordinary text.</li>
 </ul>
 
@@ -577,7 +583,7 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 <li>Scalars from a data context are <strong>stringified</strong>: <code>true</code> → <code>"1"</code>, <code>false</code> → <code>"0"</code> (an answer), <code>null</code> → <code>""</code> (the absence of one). All of <code>false</code>/<code>null</code> remain falsy; <code>false</code> never becomes the string <code>"false"</code>.</li>
 <li>An inline <code>[set]</code> <strong>overrides</strong> a seeded value; via the CLI, a later <code>--set</code> / <code>--json</code> overrides an earlier one. <code>--json</code> merging is map-wise: objects deep-merge key by key, but a JSON <strong>list</strong> replaces the previous value wholesale (overriding <code>["a","b","c"]</code> with <code>["x"]</code> yields <code>["x"]</code> — no leftover tail).</li>
 <li><code>--set a.b=c</code> builds the nested path <code>a.b</code>; the value is always a string. Keys are validated as dot-paths (<code>--set 'a b=c'</code> is a CLI error). Keys in seeded PHP arrays are the host app's responsibility — invalid ones are unreachable from templates.</li>
-<li><strong>A purely numeric path segment is an integer index</strong> — <code>.01</code>, <code>.1</code> and an appended slot <code>1</code> all address the same key (PHP's array keying). A seeded <strong>string</strong> key like <code>'01'</code> (which PHP keeps as a string) is therefore unreachable from templates: <code>@{a.01}</code> reads the int key <code>1</code> and misses.</li>
+<li><strong>A purely numeric path segment is an integer index</strong> — <code>.01</code>, <code>.1</code> and an appended slot <code>1</code> all address the same key (PHP's array keying). A seeded <strong>string</strong> key like <code>'01'</code> (which PHP keeps as a string) is therefore unreachable from templates: <code>[= @a.01]</code> reads the int key <code>1</code> and misses.</li>
 <li><strong>A seeded <code>null</code> is an empty <em>scalar</em>, not an absent key</strong> — descending into it (<code>[set a.b = x]</code> with <code>['a' => null]</code>) is a path conflict. Omit the key entirely to let the template build the container.</li>
 <li>Seeded <strong>values</strong> must be scalars, null or arrays — anything else (objects, resources) throws <code>InvalidArgumentException</code> naming the offending key path. Non-finite floats (<code>INF</code> / <code>NAN</code>) are rejected the same way; an ordinary float seeds by its PHP string form, which beyond ~15 significant digits is scientific notation (<code>1.0E+20</code>) — no longer a Number by the text rule.</li>
 <li><strong>CLI seeding is later-wins, wholesale</strong>: <code>--set a=x --set a.c=2</code> silently rebuilds <code>a</code> as a map (the scalar is dropped). Inline <code>[set]</code> is a template mutation and errors on the same conflict (<code>cannot descend into scalar</code>) — seeding describes a desired end state; the template protects its own.</li>
@@ -592,9 +598,9 @@ value @{a} here    →  value X here       (interpolated)</code></pre>
 <p>These earlier limitations were removed by later design changes and are listed only to avoid confusion:</p>
 
 <ul>
-<li><em>Mid-word interpolation</em> — <code>@{x}</code> has a clear close, so <code>con@{x}tetur</code> works.</li>
+<li><em>Mid-word emitting</em> — <code>[= @x]</code> has a clear close, so <code>con[= @x]tetur</code> works.</li>
 <li><em>Range start could not be a <code>@ref</code></em> — fixed by the <code>to</code>/<code>by</code> keywords (<code>@lo to @hi by @step</code>).</li>
-<li><em>A literal <code>[</code> before an interpolation</em> — no longer relevant; interpolation is <code>@{…}</code>, not the old <code>[[…]]</code>.</li>
+<li><em>Computed values needed a wrapper in inline sets</em> — the self-closing value scan is bracket-aware, so <code>[set total = [= @price * @qty]]</code> nests directly.</li>
 </ul>
 </section>
 

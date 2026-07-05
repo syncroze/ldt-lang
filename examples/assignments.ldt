@@ -1,47 +1,48 @@
 [# ldt-lang assignments demo — variables can be defined anywhere, even mid-text. #]
 
-[# --- the two interpolation forms ---------------------------------------
-   @{path}  interpolates ANYWHERE text is emitted (body text + [set] values).
-   @path    is a shorthand that works only INSIDE a tag ([if], [for]); in
-            plain text a bare @ is literal, so emails like a@b.com stay intact.
-   (Labels below are escaped as \@{path} so they print instead of resolving.) #]
+[# --- reads vs writes ----------------------------------------------------
+   [set name]/[unset name] take a bare name — a WRITE target.
+   @path is a READ; it exists only inside bracket constructs ([= ], [if],
+   [for]). In plain text @ is always literal, so emails like a@b.com and
+   handles like (@ada) stay intact.
+   [= expr] evaluates and emits — [= @name] prints a variable.
+   (Labels below are escaped as \[= so they print instead of resolving.) #]
 
-[set greeting]Hello[/set][set name = world]@{greeting}, @{name}!
+[set greeting]Hello[/set][set name = world][= @greeting], [= @name]!
 
-[# mid-word interpolation #]
+[# mid-word emit #]
 [set mid = sec]
-\@{path} mid-word : con@{mid}tetur       [# @{mid} splices → consectetur #]
-@path mid-word    : con@midtetur         [# bare @ is literal → con@midtetur #]
+\[= @path] mid-word : con[= @mid]tetur     [# [= @mid] splices → consectetur #]
+bare @ in text      : con@midtetur         [# @ is literal → con@midtetur #]
 
-[# interpolation inside a [set] value #]
+[# an emit inside a [set] value #]
 [set first = Ada][set last = Lovelace]
-\@{path} in a set : [set full = @{first} @{last}]@{full}    [# → Ada Lovelace #]
-@path in a set    : [set raw = @first @last]@{raw}          [# literal → @first @last #]
+\[= @path] in a set : [set full = [= @first] [= @last]][= @full]    [# → Ada Lovelace #]
 
 [# dot-paths: a trailing dot appends at the next index #]
 [set fruit. = apple][set fruit. = banana][set fruit. = cherry]
-Second fruit: @{fruit.1}
+Second fruit: [= @fruit.1]
 
 [# keyed array: a name after the dot is a key #]
 [set user.first = Ada][set user.last]Lovelace[/set]
-Name: @{user.first} @{user.last}
+Name: [= @user.first] [= @user.last]
 
 [# nesting to any depth; intermediate arrays are created on demand #]
 [set order.items. = pen][set order.items. = ink][set order.total = 2]
-Order: @{order.items.0} + @{order.items.1} = @{order.total} items
+Order: [= @order.items.0] + [= @order.items.1] = [= @order.total] items
 
 [# --- [unset] removes a path entirely — undefined again, never "empty" ---- #]
 [set tmp = scratch][unset tmp]
-After unset       : <@{tmp}> defined=@(defined @tmp)         [# → <> defined=0 #]
+After unset       : <[= @tmp]> defined=[= defined @tmp]      [# → <> defined=0 #]
 
 [# removing an index leaves a hole — no reindexing; append continues past it #]
 [unset fruit.1][set fruit. = damson]
-Fruits now        : @{fruit.0} @{fruit.2} @{fruit.3} (count @(count @fruit))
+Fruits now        : [= @fruit.0] [= @fruit.2] [= @fruit.3] (count [= count @fruit])
 
 [# several paths at once; missing ones are a silent no-op #]
 [unset order.total, order.nothing]
-Total gone        : <@{order.total}> items still there: @{order.items.0}
+Total gone        : <[= @order.total]> items still there: [= @order.items.0]
 
 [# reset-a-container idiom: unset, then rebuild #]
 [unset user][set user.name = Grace]
-Rebuilt           : @{user.name} (old keys gone: defined last=@(defined @user.last))
+Rebuilt           : [= @user.name] (old keys gone: defined last=[= defined @user.last])

@@ -494,13 +494,63 @@ all agreed already.
 With this round every candidate on the audit surface map is ✅. The engine
 was untouched; 383 tests stand.
 
+## The `[= expr]` redesign: one emit form, `@` = read-only (2026-07-05)
+
+The pre-launch syntax consolidation. Starting question: "should `[set]` take
+`@` for consistency (`[set @name = x]`)?" The codebase analysis showed the
+existing rule was already coherent — **`@` marks a READ; a write target is a
+bare name** (the grammar slot admits nothing else, so a sigil there carries
+zero information) — and the decision was to keep that rule and consolidate
+the emit side instead.
+
+**Decided:**
+- `@{path}` (interpolation) and `@(expr)` (inline expression) are REPLACED by
+  a single emit tag: **`[= expr | filters]`** — an ERB-`<%=`-style member of
+  the bracket-tag family. `[= @name]` is the everyday interpolation;
+  arithmetic/comparison/logic/count/defined/filters all work inside.
+- `@` is no longer special in TEXT at all — the lexer's text scanner triggers
+  only on `[` and `\`. Emails, handles, `(@mention)` are safe by construction
+  (no escape needed, ever).
+- Writes stay bare: `[set name]`, `[unset a, b]`, `[for k, v in @items]`.
+- The self-closing `[set … = value]` scan became BRACKET-AWARE (counts
+  unescaped `[ ]` pairs), so `[set total = [= @price * @qty]]` and
+  `[set msg = Hi [= @name]!]` nest directly. Consequence: an UNPAIRED literal
+  `[` or `]` in an inline value now needs `\[` / `\]` (or quotes).
+- CLEAN BREAK, no legacy: `@{`/`@(` get no pointed "that was the old syntax"
+  errors (the language never launched). `@{x}` in text is just literal text;
+  `@{` in an expression fails as a plain invalid reference.
+
+**Rejected on the way:**
+- `[set @name = x]` / `[unset @name]` — sigil-on-write. Rejected in favor of
+  the read/write rule (PHP-style sigil-everywhere was the alternative).
+- `(@path | filters)` as the emit form — `(@handle)` appears in real prose
+  (silently eaten in lax mode), and `(@x)` vs `@(x)` mirror-typo confusion.
+- `@(@name)` (unify on `@()`) — double-@ stutter on the most common operation.
+- `${}`/`#{}`/`%()`/`=(`/`:(` sigils — shell/JS/Python collisions, comment-char
+  overload, emoticons.
+
+**Implementation:** one EMIT token replaced INTERP+EXPR (Lexer readEmit →
+ExprParser::parseWithFilters, closer `]`, arithmetic ON). Interpreter::emit()
+preserves both old semantics: a plain/filtered REF keeps direct-lookup
+behavior (strict guard, raw-into-filters, arrays render ''), any other
+expression evaluates and renders (bools → 1/0 textualization unchanged).
+ExprParser lost the `$closer` param, `parseFilterChain`, and the `@{` pointed
+error; gained a loud guard against zero-length barewords (a stray `{`/`}` in
+an expression previously spun forever — pre-existing bug). Trimmer treats
+EMIT as output (never trims its line). All 390 tests green (the 383 rewritten
++ new coverage: bracket-aware nesting, unpaired-`[` error, literal
+`@{`/`@(`/`(@handle)` in text, `[= "a]b"]` quoting); every example rewritten
+and verified; docs/index.html, the Prism grammar + ldt theme, and the
+CLAUDE.md cheat sheet all updated in the same pass.
+
 ## Where things stand
 
 `TASKS.md` tracks the roadmap: DONE = feed-data, loop-metadata, default,
-count, filters, substring-ops, optimization-pass, quoted-set-values, unified-falsy, unset, uniform-set-closer, mini-templates+or-removal+arity+context-keywords. NOT
+count, filters, substring-ops, optimization-pass, quoted-set-values, unified-falsy, unset, uniform-set-closer, mini-templates+or-removal+arity+context-keywords,
+and the `[= expr]` emit redesign. NOT
 PLANNED = includes, macros, switch/case, custom filters, bool/null literals,
 regex, ternary. DEFERRED = nothing (the audit surface map in TASKS.md is
-fully ticked). 383 tests in `tests/run.php`; examples cover every feature;
+fully ticked). 390 tests in `tests/run.php`; examples cover every feature;
 the GitHub Pages site (`docs/index.html`, live at
 https://syncroze.github.io/ldt-lang/docs/) is the single reference doc —
 `README.md` is now just an intro + link, and `CAVEATS.md` was retired after

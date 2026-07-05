@@ -28,14 +28,10 @@ final class Token
     public const SET = 'SET';
 
     /**
-     * A `@{ path }` interpolation, optionally with a `@{ path or fallback }`
-     * default used when the path is undefined.
-     * `value` is an array: ['segments' => string[], 'default' => ?string].
+     * An `[= expr]` emit tag — evaluates the expression (filters allowed) and
+     * writes the result into the output. `value` is the parsed {@see Expr}.
      */
-    public const INTERP = 'INTERP';
-
-    /** A `@( expr )` inline expression. `value` is the parsed {@see Expr}. */
-    public const EXPR = 'EXPR';
+    public const EMIT = 'EMIT';
 
     /**
      * An `[unset a, b.c]` directive — removes each path entirely (undefined).

@@ -7,7 +7,7 @@ namespace Ldtlang;
 /**
  * Turns the flat {@see Token} stream into a node tree.
  *
- * Leaf tokens (TEXT / SET / INTERP) pass through unchanged; COMMENT tokens are
+ * Leaf tokens (TEXT / SET / EMIT) pass through unchanged; COMMENT tokens are
  * dropped; IF / ELSEIF / ELSE / ENDIF tokens are assembled into {@see IfNode}s
  * and FOR / ENDFOR into {@see ForNode}s, with nesting handled by recursion.
  * `[break]` / `[continue]` are only valid inside a loop. The result is a list
@@ -66,8 +66,7 @@ final class Parser
                 case Token::TEXT:
                 case Token::SET:
                 case Token::UNSET:
-                case Token::INTERP:
-                case Token::EXPR:
+                case Token::EMIT:
                     $nodes[] = $tok;
                     $this->i++;
                     break;

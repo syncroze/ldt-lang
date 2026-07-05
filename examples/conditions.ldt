@@ -1,7 +1,6 @@
 [# ldt-lang conditionals — [if] / [elseif] / [else] / [/if]             #]
-[# Inside a tag a reference is bare @name (the closed @{name} form is    #]
-[# text-only and rejected here); a bareword is an unquoted string        #]
-[# literal, so the @ is what marks "this is a variable".                 #]
+[# A reference is @name — the @ marks a READ; a bareword is an unquoted  #]
+[# string literal, so the @ is what marks "this is a variable".          #]
 
 [set role = editor]
 [set score = 72]

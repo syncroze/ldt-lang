@@ -6,7 +6,7 @@ namespace Ldtlang;
 
 /**
  * Raised when a .ldt source cannot be tokenized or resolved (e.g. an
- * unterminated `[set]` directive, a malformed `@{...}` reference, or a
+ * unterminated `[set]` directive, a malformed `@path` reference, or a
  * dot-path that descends into a scalar). Carries source coordinates so the
  * CLI can point at the offending spot.
  *

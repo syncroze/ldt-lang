@@ -20,13 +20,14 @@ namespace Ldtlang;
  *   - a loop: `[for <header>]` / `[/for]` with `[break]` / `[continue]`
  *     (the header is parsed by {@see ForHeader});
  *   - a removal: `[unset a, b.c]` (each path becomes undefined);
- *   - an interpolation: `@{ path }`;
- *   - an inline expression: `@( expr )` (parsed by {@see ExprParser}).
+ *   - an emit: `[= expr]` (parsed by {@see ExprParser}, filters allowed).
  *
  * A `path` is a dot-path (`user.first`, `fruit.0`); a trailing dot on a set
- * target (`fruit.`) means "append at the next index". A `\` escapes the next
- * non-alphanumeric character (so `\@{`, `\[set`, `\#]` are literal); everything
- * else — including a lone `[` or a lone `@` — is literal text.
+ * target (`fruit.`) means "append at the next index". References (`@path`)
+ * exist only inside bracket constructs — `@` in body text is always literal
+ * (emails and handles survive untouched). A `\` escapes the next
+ * non-alphanumeric character (so `\[=`, `\[set`, `\#]` are literal); everything
+ * else — including a lone `[` — is literal text.
  */
 final class Lexer
 {
@@ -76,9 +77,9 @@ final class Lexer
     {
         while ($this->pos < $this->len) {
             // Bulk-copy the literal run up to the next character that can
-            // start a construct ('\', '@' or '['). Plain text is by far the
+            // start a construct ('\' or '['). Plain text is by far the
             // common case, so it must not pay per-byte construct checks.
-            $run = strcspn($this->source, '\\@[', $this->pos);
+            $run = strcspn($this->source, '\\[', $this->pos);
             if ($run > 0) {
                 $this->pushText(substr($this->source, $this->pos, $run));
                 $this->advanceBy($run);
@@ -94,18 +95,13 @@ final class Lexer
                 continue;
             }
 
-            if ($ch === '@') {
-                if ($this->matches('@{')) {
-                    $this->readInterp();
-                    continue;
-                }
-                if ($this->matches('@(')) {
-                    $this->readExpr();
-                    continue;
-                }
-            } elseif ($ch === '[') {
+            if ($ch === '[') {
                 if ($this->matches('[#')) {
                     $this->readComment();
+                    continue;
+                }
+                if ($this->matches('[=')) {
+                    $this->readEmit();
                     continue;
                 }
                 if ($this->isSetAt($this->pos)) {
@@ -145,7 +141,7 @@ final class Lexer
                 }
             }
 
-            // A lone '\', '@' or '[' that starts no construct is literal.
+            // A lone '\' or '[' that starts no construct is literal.
             $this->pushChar($ch);
             $this->advance();
         }
@@ -193,10 +189,12 @@ final class Lexer
         $ch = $this->peek();
 
         if ($ch === '=') {
-            // Self-closing: the value runs to the tag-closing ']' — the same
-            // closer every other tag uses. A value starting with '"' is a
-            // quoted whole value: quotes protect everything inside (including
-            // ']' and edge spaces). Unquoted values write a literal ']' as \].
+            // Self-closing: the value runs to the tag-closing ']'. The scan is
+            // bracket-aware, so nested constructs ([= ...], [if]...[/if]) keep
+            // their own closers: only a ']' at depth 0 ends the tag. A value
+            // starting with '"' is a quoted whole value: quotes protect
+            // everything inside (including brackets and edge spaces).
+            // A literal unpaired '[' or ']' is written as \[ or \].
             $this->advance();
             $this->skipAllWs();
 
@@ -212,7 +210,7 @@ final class Lexer
             } else {
                 $vLine = $this->line;
                 $vCol = $this->col;
-                $expr = $this->readEscapedUntil(']', $startLine, $startCol, "unterminated [set ...] value for '$rawPath'");
+                $expr = $this->readNestedValue($startLine, $startCol, $rawPath);
                 $this->advance(); // ]
                 $value = trim($expr);
             }
@@ -251,6 +249,50 @@ final class Lexer
             'vline' => $vLine, // where the value text begins in the template,
             'vcol' => $vCol,   // so its re-lex reports exact coordinates
         ], $startLine, $startCol);
+    }
+
+    /**
+     * Read an unquoted `[set … = value]` body up to the tag-closing `]`,
+     * left unconsumed. The scan counts unescaped `[`/`]` pairs so nested
+     * constructs in the value (`[= …]`, `[if]…[/if]`) are passed through
+     * whole; `\` keeps the following character raw, so `\[` / `\]` write
+     * literal brackets without affecting the depth.
+     */
+    private function readNestedValue(int $line, int $col, string $rawPath): string
+    {
+        $out = '';
+        $depth = 0;
+        while ($this->pos < $this->len) {
+            $run = strcspn($this->source, '\\[]', $this->pos);
+            if ($run > 0) {
+                $out .= substr($this->source, $this->pos, $run);
+                $this->advanceBy($run);
+                if ($this->pos >= $this->len) {
+                    break;
+                }
+            }
+            $c = $this->source[$this->pos];
+            if ($c === '\\') {
+                $out .= '\\';
+                $this->advance();
+                if ($this->pos < $this->len) {
+                    $out .= $this->source[$this->pos];
+                    $this->advance();
+                }
+                continue;
+            }
+            if ($c === ']') {
+                if ($depth === 0) {
+                    return $out; // the tag-closing ']', left for the caller
+                }
+                $depth--;
+            } else { // '['
+                $depth++;
+            }
+            $out .= $c;
+            $this->advance();
+        }
+        $this->failAt($line, $col, "unterminated [set ...] value for '$rawPath'");
     }
 
     /**
@@ -326,79 +368,29 @@ final class Lexer
         $this->tokens[] = new Token(Token::UNSET, ['paths' => $paths], $startLine, $startCol);
     }
 
-    private function readInterp(): void
-    {
-        $this->flush();
-        $startLine = $this->line;
-        $startCol = $this->col;
-
-        $this->consume('@{');
-
-        // Head: the dot-path, up to the first `|` (a filter chain) or the
-        // closing `}`. Fallbacks are a filter (`| default: …`), so the head
-        // is nothing but a path.
-        $head = '';
-        $sawPipe = false;
-        while (true) {
-            $c = $this->peek();
-            if ($c === null) {
-                $this->failAt($startLine, $startCol, 'unterminated @{ ... } interpolation');
-            }
-            if ($c === '}') {
-                break;
-            }
-            if ($c === '|') {
-                $sawPipe = true;
-                break;
-            }
-            $head .= $c;
-            $this->advance();
-        }
-
-        // Optional trailing filter chain, parsed by ExprParser (args are full
-        // expressions). The chain ends at the closing `}`.
-        $filters = [];
-        if ($sawPipe) {
-            $lineStart = $this->pos - ($this->col - 1);
-            [$filters, $end] = ExprParser::parseFilterChain($this->source, $this->pos, $this->line, $lineStart, $this->file, '}');
-            $this->advanceBy($end - $this->pos);
-            $this->skipAllWs();
-        }
-        if ($this->peek() !== '}') {
-            $this->failAt($startLine, $startCol, 'unterminated @{ ... } interpolation');
-        }
-        $this->advance(); // }
-
-        [$segments] = $this->parsePath(trim($head), allowAppend: false, line: $startLine, col: $startCol);
-        $this->tokens[] = new Token(Token::INTERP, [
-            'segments' => $segments,
-            'filters' => $filters,
-        ], $startLine, $startCol);
-    }
-
     /**
-     * Read an inline `@( expr )` expression. The expression self-delimits at the
-     * `)` that balances the opening `@(`; {@see ExprParser} parses it with
-     * arithmetic enabled and reports where that `)` is expected.
+     * Read an `[= expr]` emit tag. The expression self-delimits at the first
+     * bare `]` (quoted strings protect one) and {@see ExprParser} parses it
+     * with arithmetic enabled and filters allowed.
      */
-    private function readExpr(): void
+    private function readEmit(): void
     {
         $this->flush();
         $startLine = $this->line;
         $startCol = $this->col;
 
-        $this->consume('@(');
+        $this->consume('[=');
         $lineStart = $this->pos - ($this->col - 1);
-        [$expr, $end] = ExprParser::parseWithFilters($this->source, $this->pos, $this->line, $lineStart, $this->file, ')', true);
+        [$expr, $end] = ExprParser::parseWithFilters($this->source, $this->pos, $this->line, $lineStart, $this->file, true);
         $this->advanceBy($end - $this->pos);
         $this->skipAllWs();
 
-        if ($this->peek() !== ')') {
-            $this->failAt($startLine, $startCol, "expected ')' to close @(");
+        if ($this->peek() !== ']') {
+            $this->failAt($startLine, $startCol, "expected ']' to close [=");
         }
-        $this->advance(); // )
+        $this->advance(); // ]
 
-        $this->tokens[] = new Token(Token::EXPR, $expr, $startLine, $startCol);
+        $this->tokens[] = new Token(Token::EMIT, $expr, $startLine, $startCol);
     }
 
     /**
@@ -457,9 +449,9 @@ final class Lexer
 
     /**
      * Read `[if` / `[elseif` plus its condition. The condition self-delimits
-     * (a `@{...}` ref closes at its own `}` and a bare `@name` ends at the next
-     * boundary), so {@see ExprParser} consumes exactly the boolean expression
-     * and the first bare `]` closes the tag. Body text begins after that `]`.
+     * (a bare `@name` ref ends at the next boundary), so {@see ExprParser}
+     * consumes exactly the boolean expression and the first bare `]` closes
+     * the tag. Body text begins after that `]`.
      */
     private function readCondition(string $tokenType, string $keyword): void
     {
@@ -602,7 +594,7 @@ final class Lexer
 
     /**
      * Handle a `\` escape in body text. A backslash before any non-alphanumeric
-     * character emits that character literally (so `\@{`, `\[set`, `\}` and `\\`
+     * character emits that character literally (so `\[=`, `\[set`, `\]` and `\\`
      * are written as-is); before a letter, digit, end-of-line or end-of-input
      * the backslash itself is literal (so Windows paths like `C:\Users` and a
      * trailing prose backslash survive untouched).

@@ -1,7 +1,7 @@
 # PhpStorm syntax highlighting for ldt-lang (`.ldt`)
 
 PhpStorm ships with built-in TextMate support, so a small TextMate bundle
-gives real (regex-based) highlighting — including `@{...}` interpolations,
+gives real (regex-based) highlighting — including `[= ]` emit tags,
 `[set]` directives and `[# #]` comments — without writing a plugin.
 
 ## Install (TextMate bundle — recommended)
@@ -18,17 +18,17 @@ if you want to tweak how each scope looks.
 ### What gets highlighted
 | Construct | Scope |
 |-----------|-------|
-| escapes (`\[if`, `\@{`, `\#]`, …) | `constant.character.escape` |
+| escapes (`\[if`, `\[=`, `\#]`, …) | `constant.character.escape` |
 | `[set` / `[/set]` / `[unset` | `keyword.control` |
-| variable path / `@{name}` / `@ref` / loop vars | `variable.other` |
-| `.key` segment | `constant.other.key` |
+| write names / `@ref` reads / loop vars | `variable.other` |
 | `=` | `keyword.operator.assignment` |
 | the value between `=`/`]` and its closer | `string.unquoted.value` |
+| `[= expr]` emit tags | `meta.emit` (contents via the rows below) |
 | `[if` / `[elseif` / `[else]` / `[/if]` | `keyword.control` |
 | `[for` / `[/for]` / `[break]` / `[continue]` | `keyword.control` |
 | word operators (`and or not defined count contains starts with ends in to by`) | `keyword.operator.word` |
-| symbol operators (`== != < > <= >= + - * / %`) — inside headers/`@()` only | `keyword.operator` |
-| `\| filter` names in `@{}` / `@()` chains | `support.function.filter` |
+| symbol operators (`== != < > <= >= + - * / %`) — inside headers/`[= ]` only | `keyword.operator` |
+| `\| filter` names in `[= ]` chains | `support.function.filter` |
 | `"quoted strings"` in expressions | `string.quoted.double` |
 | numbers (incl. `+5` / `-5`) | `constant.numeric` |
 | `[# ... #]` comments | `comment.block` |
@@ -39,7 +39,7 @@ first so `\[if` never lights up as a live tag — both mirroring the engine.
 ## Alternative: native File Type (no bundle)
 
 Quicker but weaker — it's keyword/brace based and can't properly color
-`@{...}`:
+`[= ]` contents:
 
 1. **Settings** → **Editor** → **File Types** → **+** (New).
 2. Name `ldtlang`, block comment `[#` … `#]`.

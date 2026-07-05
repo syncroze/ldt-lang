@@ -1,35 +1,37 @@
 [# =================================================================== #]
 [# ldt-lang — writing literal delimiters (escaping)                     #]
 [#                                                                     #]
-[# The earlier limitations are now resolved:                           #]
-[#   * mid-word interpolation works (@{x} has a clear close);          #]
-[#   * a range's start may be a @ref (the 'to' keyword disambiguates); #]
-[#   * any delimiter can be written literally with a backslash.        #]
-[#                                                                     #]
 [# Rule: '\' before a NON-alphanumeric char emits that char literally  #]
-[# (so \@{ , \[ , \] , \#] , \\ are literal); before a letter/digit    #]
+[# (so \[= , \[ , \] , \#] , \\ are literal); before a letter/digit    #]
 [# the backslash itself is literal, so C:\Users survives untouched.    #]
+[# @ needs no escaping anywhere in text — it is only special inside    #]
+[# bracket constructs.                                                 #]
 [# =================================================================== #]
 
 [set x = hi]
 
-[# ---- literal interpolation opener ---------------------------------- #]
-literal \@{...} : \@{x}         [# renders @{x}, not interpolated #]
-real one        : @{x}          [# renders hi #]
+[# ---- literal emit opener -------------------------------------------- #]
+literal \[= ...] : \[= @x]      [# renders [= @x], not evaluated #]
+real one         : [= @x]       [# renders hi #]
 
 [# ---- literal tag ---------------------------------------------------- #]
 literal tag    : \[set a = 1]   [# printed as text, not executed #]
 
 [# ---- literal ] in a value ------------------------------------------- #]
-[set blk]a \[/set] b[/set]literal [/set] in a block value : @{blk}
-[set slf = a \] b]escaped \] in an unquoted value    : @{slf}
-[set q = "brackets [1] are free in quotes"]quotes protect ] (no escape)      : @{q}
+[set blk]a \[/set] b[/set]literal [/set] in a block value : [= @blk]
+[set slf = a \] b]escaped \] in an unquoted value    : [= @slf]
+[set q = "brackets [1] are free in quotes"]quotes protect ] (no escape)      : [= @q]
+
+[# ---- an unpaired literal [ in an inline value needs its escape ------- #]
+[# the = form counts [ ] pairs (so [= ] and [if] nest); a lone [ would   #]
+[# unbalance the scan, so write it as \[                                 #]
+[set half = see \[1\] here]escaped \[ and \] in a value       : [= @half]
 
 [# ---- backslashes in ordinary text are preserved -------------------- #]
 windows path   : C:\Users\ldt
 
 [# ---- the one thing still to know ------------------------------------ #]
-[# There is no '\' escape INSIDE a condition/for expression. To put a   #]
-[# special character in a compared value there, use a quoted string:    #]
+[# There is no '\' escape INSIDE an expression. To put a special         #]
+[# character in a compared value there, use a quoted string:             #]
 [set expr = "a]b"]
 quoted in \[if]: [if @expr == "a]b"]matched[/if]

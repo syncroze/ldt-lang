@@ -14,7 +14,7 @@ namespace Ldtlang;
  *   iterable := ref                                     (array)
  *             | bound 'to' bound ( 'by' bound )?        (range, inclusive)
  *   bound    := '-'? digit+  |  ref
- *   ref      := '@' path                             (bare; @{...} is text-only)
+ *   ref      := '@' path
  *
  * The `to` keyword disambiguates the two forms after the first bound is read,
  * so a range's start may itself be a `@ref` (e.g. `@lo to @hi by @step`).
@@ -146,8 +146,6 @@ final class ForHeader
 
     /**
      * Read a bare `@path` reference and return its validated dot-path segments.
-     * The closed `@{path}` form is not used inside a header — the `to`/`by`
-     * keywords, spaces and `]` delimit the reference — so a `@{` is a mistake.
      *
      * @return array<int, string>
      */
@@ -155,10 +153,6 @@ final class ForHeader
     {
         $start = $this->pos;
         $this->pos++; // past '@'
-
-        if ($this->peek() === '{') {
-            $this->fail($start, 'use a bare @name inside a [for] header (the @{...} form is for text only)');
-        }
 
         $n = strspn($this->source, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-', $this->pos);
         $raw = substr($this->source, $this->pos, $n);

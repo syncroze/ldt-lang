@@ -8,7 +8,7 @@ namespace Ldtlang;
  * Whitespace control: removes "standalone" directive lines.
  *
  * A line is standalone when its only content is directives plus whitespace —
- * no literal text and no `@{...}`. Such a line loses its leading indentation
+ * no literal text and no `[= ...]` output. Such a line loses its leading indentation
  * and its trailing newline, so a `[set]` or `[# #]` written on its own line
  * does not leave a blank line behind. A line that also carries real text or an
  * interpolation is left untouched, which keeps inline embedding exactly as
@@ -121,7 +121,7 @@ final class Trimmer
             if ($a['kind'] === 'text' && preg_match('/\S/', $a['s']) === 1) {
                 return true;
             }
-            if ($a['kind'] === 'tok' && in_array($a['token']->type, [Token::INTERP, Token::EXPR], true)) {
+            if ($a['kind'] === 'tok' && $a['token']->type === Token::EMIT) {
                 return true;
             }
         }

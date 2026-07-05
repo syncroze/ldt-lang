@@ -6,13 +6,13 @@ namespace Ldtlang;
 
 /**
  * Parses an expression out of the source. Used in two places:
- *   - `[if]` / `[elseif]` / `[for]` tags — closer `]`, arithmetic OFF;
- *   - an inline `@( ... )` block — closer `)`, arithmetic ON.
+ *   - `[if]` / `[elseif]` / `[for]` tags — arithmetic OFF;
+ *   - an `[= ... ]` emit tag — arithmetic ON, filters allowed.
  *
- * References are always bare `@name` (the closed `@{...}` form is text-only).
- * A reference ends at the next boundary, so the parser consumes exactly the
- * expression tokens up to the closer and reports the byte offset immediately
- * after the last one; the {@see Lexer} resumes there (and expects the closer).
+ * References are always bare `@name`. A reference ends at the next boundary,
+ * so the parser consumes exactly the expression tokens up to the closer and
+ * reports the byte offset immediately after the last one; the {@see Lexer}
+ * resumes there (and expects the closer).
  *
  * Grammar (precedence low → high; the arithmetic levels are a no-op passthrough
  * when arithmetic is off, which keeps hyphenated barewords working in tags):
@@ -41,16 +41,14 @@ final class ExprParser
         private readonly int $line,
         private readonly int $lineStart,
         private readonly ?string $file,
-        private readonly string $closer,
         private readonly bool $arithmetic,
     ) {
     }
 
     /**
-     * Parse an expression. `$closer` is the character that ends it — `]` for an
-     * `[if]`/`[for]` tag, `)` for an inline `@(...)`. `$arithmetic` enables the
-     * `+ - * / %` operators (on inside `@(...)`, off in conditions so hyphenated
-     * barewords keep working).
+     * Parse an expression up to the closing `]`. `$arithmetic` enables the
+     * `+ - * / %` operators (on inside `[= ...]`, off in conditions so
+     * hyphenated barewords keep working).
      *
      * @return array{0: Expr, 1: int} the expression and the byte offset where
      *                                the closer is expected
@@ -61,10 +59,9 @@ final class ExprParser
         int $line,
         int $lineStart,
         ?string $file = null,
-        string $closer = ']',
         bool $arithmetic = false,
     ): array {
-        $p = new self($source, $line, $lineStart, $file, $closer, $arithmetic);
+        $p = new self($source, $line, $lineStart, $file, $arithmetic);
         $p->toks = $p->tokenize($start);
 
         if ($p->toks === []) {
@@ -75,7 +72,7 @@ final class ExprParser
         if ($p->i < count($p->toks)) {
             $tok = $p->toks[$p->i];
             if ($tok['type'] === 'pipe') {
-                $p->fail($tok['start'], 'filters are not supported in a tag condition (use @(...) or filter into a [set] first)');
+                $p->fail($tok['start'], 'filters are not supported in a tag condition (use [= ...] or filter into a [set] first)');
             }
             $p->fail($tok['start'], "unexpected '{$p->tokenText($tok)}' in expression");
         }
@@ -85,7 +82,7 @@ final class ExprParser
 
     /**
      * Like {@see parse}, but allows a trailing filter pipe chain
-     * (`expr | filter: args, ... | filter`). Used by `@( ... )`.
+     * (`expr | filter: args, ... | filter`). Used by `[= ... ]`.
      *
      * @return array{0: Expr, 1: int}
      */
@@ -95,10 +92,9 @@ final class ExprParser
         int $line,
         int $lineStart,
         ?string $file,
-        string $closer,
         bool $arithmetic,
     ): array {
-        $p = new self($source, $line, $lineStart, $file, $closer, $arithmetic);
+        $p = new self($source, $line, $lineStart, $file, $arithmetic);
         $p->toks = $p->tokenize($start);
 
         if ($p->toks === []) {
@@ -116,35 +112,6 @@ final class ExprParser
         }
         $end = $p->toks[$p->i - 1]['end'];
         return [$expr, $end];
-    }
-
-    /**
-     * Parse a bare filter chain starting at a `|` (used by `@{ path | ... }`,
-     * where the head path is read by the {@see Lexer}).
-     *
-     * @return array{0: array<int, array{name: string, args: array<int, Expr>}>, 1: int}
-     */
-    public static function parseFilterChain(
-        string $source,
-        int $start,
-        int $line,
-        int $lineStart,
-        ?string $file,
-        string $closer,
-    ): array {
-        $p = new self($source, $line, $lineStart, $file, $closer, true);
-        $p->toks = $p->tokenize($start);
-
-        $chain = $p->parseChain();
-        if ($chain === []) {
-            $p->fail($start, "expected a '| filter' chain");
-        }
-        if ($p->i < count($p->toks)) {
-            $tok = $p->toks[$p->i];
-            $p->fail($tok['start'], "unexpected '{$p->tokenText($tok)}' in filter chain");
-        }
-        $end = $p->toks[$p->i - 1]['end'];
-        return [$chain, $end];
     }
 
     /**
@@ -182,8 +149,8 @@ final class ExprParser
     // --- tokenizer -------------------------------------------------------
 
     /**
-     * Tokenize the expression into candidate tokens. Stops at the closer — a
-     * bare `]` (tag), or a `)` at paren-depth 0 (an `@(...)` block) — or EOF.
+     * Tokenize the expression into candidate tokens. Stops at the tag-closing
+     * bare `]` (quoted strings protect one) or EOF.
      *
      * @return array<int, array{type: string, value: mixed, start: int, end: int}>
      */
@@ -191,7 +158,6 @@ final class ExprParser
     {
         $len = strlen($this->source);
         $toks = [];
-        $depth = 0;
 
         while ($p < $len) {
             $c = $this->source[$p];
@@ -200,14 +166,8 @@ final class ExprParser
                 $p++;
                 continue;
             }
-            if ($c === ']' && $this->closer === ']') {
+            if ($c === ']') {
                 break; // close of the tag
-            }
-            if ($c === ')' && $this->closer === ')' && $depth === 0) {
-                break; // close of the @(...) block
-            }
-            if ($c === '}' && $this->closer === '}') {
-                break; // close of the @{...} block (filter chain)
             }
 
             $start = $p;
@@ -226,12 +186,10 @@ final class ExprParser
             }
 
             if ($c === '(') {
-                $depth++;
                 $toks[] = ['type' => 'lparen', 'value' => '(', 'start' => $start, 'end' => ++$p];
                 continue;
             }
             if ($c === ')') {
-                $depth--;
                 $toks[] = ['type' => 'rparen', 'value' => ')', 'start' => $start, 'end' => ++$p];
                 continue;
             }
@@ -259,6 +217,12 @@ final class ExprParser
                 continue;
             }
 
+            // Any other boundary character can start no token — fail loudly
+            // rather than spin on a zero-length bareword.
+            if ($this->isBoundary($c)) {
+                $this->fail($start, "unexpected '$c' in expression");
+            }
+
             // Bareword: literal or keyword.
             $word = '';
             while ($p < $len && !$this->isBoundary($this->source[$p])) {
@@ -274,9 +238,6 @@ final class ExprParser
 
     /**
      * Read a bare `@path` reference (ends at the next boundary character).
-     * Inside a tag the closed `@{path}` form is not used — the surrounding
-     * operators / brackets already delimit the reference — so a `@{` here is a
-     * mistake and gets a pointed error.
      *
      * @return array{0: array{type:string,value:mixed,start:int,end:int}, 1: int}
      */
@@ -284,10 +245,6 @@ final class ExprParser
     {
         $len = strlen($this->source);
         $p = $start + 1; // past '@'
-
-        if ($p < $len && $this->source[$p] === '{') {
-            $this->fail($start, 'use a bare @name inside an expression (the @{...} form is for text only)');
-        }
 
         $raw = '';
         while ($p < $len && !$this->isBoundary($this->source[$p])) {

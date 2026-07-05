@@ -5,12 +5,11 @@ declare(strict_types=1);
 namespace Ldtlang;
 
 /**
- * The built-in filter set, applied as a postfix pipe chain in `@{ ... }` and
- * `@( ... )`:
+ * The built-in filter set, applied as a postfix pipe chain in `[= ... ]`:
  *
- *   @{name | trim | upper}
- *   @{items | join: ", "}
- *   @{text | truncate: @width - 2, "…"}
+ *   [= @name | trim | upper]
+ *   [= @items | join: ", "]
+ *   [= @text | truncate: @width - 2, "…"]
  *
  * A chain entry is ['name' => string, 'args' => Expr[]]; args are full
  * expressions evaluated against the environment at apply time. A value flowing

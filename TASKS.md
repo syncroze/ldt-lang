@@ -43,6 +43,22 @@ Last updated: 2026-07-05.
   `--strict`. Arrays flow through the chain but the final result must be a
   scalar.
 
+### 23. The `[= expr]` emit redesign — `@` reads, writes bare, one emit form ✅
+- `@{path}` and `@(expr)` replaced by the single bracket-family emit tag
+  `[= expr | filters]`; `[= @name]` is the everyday interpolation. `@` is no
+  longer special in text (emails/handles safe by construction; the text
+  scanner triggers only on `[` and `\`). Writes stay bare (`[set name]`,
+  `[unset a, b]`, `[for k, v]`) — the rule is "reads carry `@`, writes don't".
+- Self-closing `[set … = value]` scan is bracket-aware: `[set total =
+  [= @price * @qty]]` nests; an unpaired literal `[`/`]` needs `\[`/`\]`.
+- Clean break, no legacy errors (pre-launch). One EMIT token replaced
+  INTERP+EXPR; plain-ref emits keep the old `@{}` semantics (strict guard,
+  raw-into-filters, arrays render ''), computed emits the old `@()` semantics.
+- Full sweep in the same pass: tests rewritten (390 green), all examples,
+  docs/index.html, Prism grammar + ldt theme, CLAUDE.md cheat sheet, FILES.md.
+  Full decision log (including rejected alternatives `(@path)`, `@(@name)`,
+  `${}`/`#{}`/`%()` sigils) in HISTORY.md.
+
 ### 22. README + CAVEATS merged into the GitHub Pages doc site ✅
 - `docs/index.html` (the GitHub Pages site, `syncroze.github.io/ldt-lang/docs/`)
   is now the complete language reference: every section of `README.md`
