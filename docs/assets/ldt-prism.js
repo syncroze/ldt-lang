@@ -16,7 +16,7 @@
 		pattern: /\[=(?:"(?:\\.|[^"\\])*"|[^\]"])*\]/,
 		greedy: true,
 		inside: {
-			'sigil': [/^\[/, /\]$/],
+			'punctuation': [/^\[/, /\]$/],
 			'string': STRING,
 			'function': FILTER_NAME,
 			// the leading '=' is the tag's own keyword (before 'operator' runs)
@@ -24,7 +24,10 @@
 			'operator': OPERATOR,
 			'variable': VARIABLE,
 			'number': NUMBER,
-			'punctuation': /[():,]/,
+			'inner-punctuation': {
+				pattern: /[():,]/,
+				alias: 'punctuation',
+			},
 			// leftover barewords are unquoted string values/literals
 			'value': {
 				pattern: /\S+/,

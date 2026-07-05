@@ -7,13 +7,14 @@ code.language-ldt {
 	color: #e6e6e6;
 }
 
-code.language-ldt .token.tag,
-code.language-ldt .token.emit {
+/* same as base text, but needed: Prism's Tomorrow theme (loaded for the
+   PHP/bash snippets) would otherwise paint these red / cyan / bold-purple */
+code.language-ldt .token.tag {
 	color: #e6e6e6;
 }
 
 code.language-ldt .token.comment {
-	color: #6b7688;
+	color: #9aa5b8;
 	font-style: italic;
 }
 
