@@ -22,12 +22,13 @@
 
 	<aside class="sidebar" id="sidebar">
 		<div class="sidebar-brand">
-			<h1>ldt-lang</h1>
+			<h1><a href="https://ldt-lang.syncroze.com/">ldt-lang</a></h1>
 			<p class="tagline">Logic Driven Text Language — a small, dependency-free embeddable templating engine for PHP.</p>
 		</div>
 
 		<nav class="links">
 			<a href="https://github.com/syncroze/ldt-lang">GitHub</a>
+			<a href="https://packagist.org/packages/syncroze/ldt-lang">Packagist</a>
 			<a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">Tasks</a>
 			<a href="https://github.com/syncroze/ldt-lang/blob/master/HISTORY.md">Design history</a>
 			<a href="https://github.com/syncroze/ldt-lang/blob/master/FILES.md">File structure</a>
@@ -37,8 +38,8 @@
 			<strong>Contents</strong>
 			<ol>
 				<li><a href="#data-model">1. Data model</a></li>
-				<li><a href="#assignment">2. Assignment — <code>[set]</code> / <code>[unset]</code></a></li>
-				<li><a href="#emit">3. Emitting — <code>[= ]</code></a></li>
+				<li><a href="#assignment">2. Assignment</a></li>
+				<li><a href="#emit">3. Emitting</a></li>
 				<li><a href="#expressions">4. Expressions</a></li>
 				<li><a href="#filters">5. Filters</a></li>
 				<li><a href="#conditionals">6. Conditionals</a></li>
@@ -59,7 +60,7 @@
 	<main class="content">
 	<div class="content-inner">
 
-	<h1 class="page-title">ldt-lang</h1>
+	<h1 class="page-title"><a href="https://ldt-lang.syncroze.com/">ldt-lang</a></h1>
 	<p class="page-tagline">Logic Driven Text Language — a small, dependency-free embeddable templating engine for PHP. Everything is literal text until a bracket construct appears.</p>
 
 	<p>The engine is a four-stage <code>Lexer → Trimmer → Parser → Interpreter</code> pipeline with a bracket-tag surface syntax and a <strong>nested</strong> data model.</p>
@@ -395,14 +396,28 @@ ldt --json data.json --set site=X f.ldt  # later flags win</code></pre>
 	<section id="run-it">
 	<h2>Run it</h2>
 
-	<pre><code class="language-bash">php bin/ldt examples/assignment.ldt      # render a file
-php bin/ldt --strict file.ldt            # error on undefined references
-php bin/ldt --no-trim file.ldt           # keep standalone-line blank lines
-php bin/ldt --tokens file.ldt            # dump the token stream
-php bin/ldt -                            # render stdin
-php tests/run.php                        # run the test suite</code></pre>
+	<p>Via Composer — <a href="https://packagist.org/packages/syncroze/ldt-lang">syncroze/ldt-lang on Packagist</a>:</p>
 
-	<p>Or from PHP:</p>
+	<pre><code class="language-bash">composer require syncroze/ldt-lang</code></pre>
+
+	<pre><code class="language-php">require 'vendor/autoload.php';
+use Ldtlang\Ldt;
+
+echo Ldt::render('Hello [set who = world][= @who]!');
+echo Ldt::renderFile('template.ldt');</code></pre>
+
+	<p>The CLI ships at <code>vendor/bin/ldt</code>:</p>
+
+	<pre><code class="language-bash">vendor/bin/ldt examples/assignment.ldt   # render a file
+vendor/bin/ldt --strict file.ldt         # error on undefined references
+vendor/bin/ldt --no-trim file.ldt        # keep standalone-line blank lines
+vendor/bin/ldt --tokens file.ldt         # dump the token stream
+vendor/bin/ldt -                         # render stdin</code></pre>
+
+	<p>No Composer? The engine also runs from a plain clone of the repository — clone it, then:</p>
+
+	<pre><code class="language-bash">php bin/ldt examples/assignment.ldt      # render a file
+php tests/run.php                        # run the test suite</code></pre>
 
 	<pre><code class="language-php">require 'autoload.php';
 use Ldtlang\Ldt;

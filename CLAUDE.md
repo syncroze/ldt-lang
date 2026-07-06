@@ -64,7 +64,7 @@ Writes take a BARE name; reads carry the `@`. `@` in text is ALWAYS literal
   rejected and WHY (do not re-propose rejected designs: bare `@` in text,
   regex, ternary, bool/null literals, custom filters, includes, macros).
 - `TASKS.md` — roadmap: Done / Not planned / Deferred.
-- `docs/index.html` (also live at https://syncroze.github.io/ldt-lang/) —
+- `docs/index.html` (also live at https://ldt-lang.syncroze.com/) —
   full language reference and every edge case/gotcha (the "Caveats" section).
 - `tests/run.php` — 398 zero-dependency tests; run with `php tests/run.php`.
   Every change must keep this green and all `examples/*.ldt` rendering.

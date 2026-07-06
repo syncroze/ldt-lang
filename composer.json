@@ -3,7 +3,7 @@
     "description": "ldt-lang — Logic Driven Text Language, an embeddable templating language (.ldt files), interpreted in PHP.",
     "type": "library",
     "license": "MIT",
-    "homepage": "https://syncroze.github.io/ldt-lang/",
+    "homepage": "https://ldt-lang.syncroze.com/",
     "require": {
         "php": ">=8.1"
     },
