@@ -1,0 +1,41 @@
+[# ===================================================================
+   ldt-lang — conditionals: [if] / [elseif] / [else] / [/if]
+   A bareword is an unquoted STRING LITERAL; @ marks a variable. Every
+   comparison/logic/substring operator from expressions.ldt works here.
+   =================================================================== #]
+
+[# --- basic branch, bareword literal vs @ reference ---------------------- #]
+[set role = admin]
+[if @role == admin]Admin[elseif @role == editor]Editor[else]Guest[/if]
+
+[# --- falsy/truthy: undefined, "", 0, [] are falsy; a non-empty array,
+   and even the string "0x", are truthy ------------------------------------ #]
+[set count = 0][set label = 0x]
+zero is falsy        : [if @count]has items[else]no items[/if]
+"0x" is truthy (text) : [if @label]truthy[else]falsy[/if]
+
+[# --- defined, for existence checks -------------------------------------- #]
+[set profile.name = Ada]
+has a name    : [if defined @profile.name]yes[else]no[/if]
+has an avatar : [if defined @profile.avatar]yes[else]no[/if]
+
+[# --- count, for size-based branching ------------------------------------ #]
+[set cart. = pen][set cart. = ink]
+[if count @cart > 0]Cart has [= count @cart] item[if count @cart != 1]s[/if][else]Cart is empty[/if]
+
+[# --- substring tests as routing logic ------------------------------------ #]
+[set path = /api/users/42]
+[if @path starts with "/api"]API route[else]Page route[/if]
+[set filename = report.PDF]
+[if @filename ends with ".pdf"]lowercase pdf[elseif @filename ends with ".PDF"]uppercase pdf[else]other[/if]
+
+[# --- boolean logic: and / or / not, with parens ------------------------- #]
+[set age = 16][set hasConsent = 1]
+[if @age >= 18 or (@age >= 13 and @hasConsent)]Allowed[else]Blocked[/if]
+
+[# --- marker tags accept whitespace before their closing ] --------------- #]
+[if @role == admin]Admin[else ]Not admin[/if ]
+
+[# a duplicate [else] in the same [if], or an [elseif] placed after an
+   [else], is a loud pointed error — not executed here since it would
+   abort the render #]

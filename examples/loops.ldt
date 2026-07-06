@@ -1,35 +1,32 @@
-[# ldt-lang loops — [for … in …] / [/for] with [break] / [continue] #]
-[# Ranges read as 'a to b', with an optional 'by step'.               #]
+[# ===================================================================
+   ldt-lang — loops: [for v in @arr] / [for k, v in @arr] / [/for],
+   ranges "a to b [by step]", [break] / [continue], and @loop.* metadata.
+   The loop variable is a WRITE (bare); the iterable/bounds are READS (@).
+   =================================================================== #]
 
-[# ranges are inclusive; 'by' sets the step #]
-Count: [for n in 1 to 5][= @n][/for]
-Evens: [for n in 2 to 10 by 2][= @n] [/for]
-Down:  [for n in 3 to 1][= @n][/for]
+[# --- ranges: inclusive, direction inferred, optional step --------------- #]
+Count : [for n in 1 to 5][= @n][/for]
+Evens : [for n in 2 to 10 by 2][= @n] [/for]
+Down  : [for n in 3 to 1][= @n][/for]
 
-[# dynamic bounds — start, end and step may all be @refs #]
+[# any bound — including the START — may be a @ref #]
 [set lo = 3][set hi = 9][set st = 3]
-Dynamic: [for n in @lo to @hi by @st][= @n] [/for]
+Dynamic bounds : [for n in @lo to @hi by @st][= @n] [/for]
 
-[# iterate an indexed array (one-var = value) #]
+[# a bare integer alone is NOT iterable — [for n in 5] errors; ranges
+   need the 'to' keyword. Not executed here. #]
+
+[# --- iterate an array: one-var = value, two-var = key/value ------------ #]
 [set fruit. = apple][set fruit. = banana][set fruit. = cherry]
+One-var : [for f in @fruit][= @f] [/for]
 
-[# the header declares the loop variable bare (a write); the body reads #]
-[# each value with [= @f]                                               #]
-Inline: [for f in @fruit][= @f] [/for]
-
-Fruit:
-[for f in @fruit]
-  - [= @f]
-[/for]
-
-[# two-var form exposes the key/index #]
 [set price.small = 3][set price.large = 5]
-Prices:
+Two-var :
 [for size, amount in @price]
   [= @size] = [= @amount]
 [/for]
 
-[# nested arrays: each loop value can itself be a record #]
+[# --- nested/record iteration: a loop value can itself be a sub-array --- #]
 [set cart.0.name = Pen][set cart.0.qty = 2]
 [set cart.1.name = Ink][set cart.1.qty = 1]
 Cart:
@@ -37,5 +34,41 @@ Cart:
   [= @line.qty] x [= @line.name]
 [/for]
 
-[# break / continue #]
-First even over 3: [for n in 1 to 9][if @n < 4 or @n > 8][continue][/if][if @n == 6][break][/if][= @n] [/for]
+[# --- break / continue bind to the NEAREST enclosing loop ---------------- #]
+Skip low, stop at 6 : [for n in 1 to 9][if @n < 4][continue][/if][if @n == 6][break][/if][= @n] [/for]
+
+[# --- loop metadata: @loop.index (1-based), .index0, .first, .last, .count #]
+[for f in @fruit]
+[= @loop.index]/[= @loop.count] [if @loop.first](first)[/if][if @loop.last](last)[/if] index0=[= @loop.index0] : [= @f]
+[/for]
+
+[# a range's keys are 0-based POSITIONS, distinct from @loop.index (1-based) #]
+[for k, n in 5 to 7]
+key=[= @k] loop.index=[= @loop.index] value=[= @n]
+[/for]
+
+[# nested loops each get their own @loop — the inner shadows the outer
+   only within its own body #]
+[for outer in 1 to 2]
+  outer [= @loop.index]:[for inner in 1 to 2] inner [= @loop.index][/for]
+[/for]
+
+[# a variable of your own named 'loop' is shadowed inside the loop body
+   and restored right after it #]
+[set loop = mine]
+before : [= @loop]
+[for n in 1 to 1][/for]
+after  : [= @loop]
+
+[# 'loop' itself cannot be used AS the loop variable — [for loop in @x]
+   would make the values unreachable, so it's a loud header error. Not
+   executed here. #]
+
+[# an undefined ARRAY iterates zero times (silent); an undefined range
+   BOUND is a loud error instead — bounds must resolve to an integer.
+   Not executed here since it would abort the render. #]
+Zero iterations over an undefined array : [for v in @missingArray][= @v][/for](none)
+
+[# ranges stream lazily — a huge range costs time, never memory (not
+   demonstrated at full scale here); bounds must also fit the platform
+   integer or it's a loud "out of range" error. #]

@@ -1,0 +1,50 @@
+[# ===================================================================
+   ldt-lang — the [= expr] emit tag: THE way to write a value into
+   output. A bare @path in plain text is ALWAYS literal (emails/handles
+   need no escaping); [= @path] is what actually interpolates it.
+   =================================================================== #]
+
+[set name = Ada]
+bare @ in text does NOT interpolate : this is @name, untouched
+\[= ] is what emits it              : this is [= @name], resolved
+
+[# @ is never special in text, by construction — no escaping needed #]
+email survives   : ada@example.com
+handle survives  : say hi to (@ada)
+
+[# [= ] has a clear close, so it splices anywhere — even mid-word #]
+[set mid = sec]
+mid-word splice : con[= @mid]tetur
+
+[# --- default: the fallback for FALSY values (undefined, "", 0, []) ----- #]
+hello [= @missing | default: "guest"]!
+
+[set zero = 0]
+a real 0 does NOT survive an attached fallback (falsy!) : [= @zero | default: "-"]
+to actually show a zero, don't attach one                : [= @zero]
+
+[# the fallback argument is a full expression, and a plain @ref reads
+   the RAW value — so an array can be the fallback #]
+[set backupList. = x][set backupList. = y]
+[set primaryList = ]
+array as a fallback : [= @primaryList | default: @backupList | join: ", "]
+
+[# cascading through several falsy values #]
+[set empty = ]
+cascade : [= @missing | default: @empty | default: "last resort"]
+
+[# default: is LAZY — only evaluated if the fallback actually fires, so
+   an error inside an unused fallback never surfaces #]
+[set safe = 5]
+unused fallback never runs : [= @safe | default: 1 / 0]
+
+[# --- booleans always textualize as 1 / 0, arrays never render as text #]
+[set cmp = [= 3 > 10]]
+stored comparison result : [= @cmp]
+
+[# [= ] cannot nest inside itself — [= [= 1 + 1] + 1] is a loud error;
+   group with plain parens instead #]
+grouping instead of nesting : [= (1 + 1) + 1]
+
+[# [= ] can also never be a range bound (loops.ldt shows the fix: compute
+   into a [set] first, then use that variable as the bound) #]

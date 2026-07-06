@@ -1,0 +1,30 @@
+[# ===================================================================
+   ldt-lang — --strict is a render-time flag, not template syntax:
+     php bin/ldt examples/strict-mode.ldt            (default: lax)
+     php bin/ldt --strict examples/strict-mode.ldt   (strict)
+   This file renders IDENTICALLY either way — every line below is one of
+   the cases --strict does NOT guard. The one case it DOES guard (a bare
+   [= @missing] interpolation) is shown only in a comment, since running
+   it under --strict would abort the render.
+   =================================================================== #]
+
+[# --- the ONE thing --strict guards: a plain ref interpolation ----------
+   [= @missing]            renders ''  in lax mode, ERRORS in --strict
+   [= (@missing)]          same — parens parse away, still a plain ref
+   Neither is executed here since the --strict run would abort. #]
+
+[# --- [if]/[for] are EXISTENCE TESTS — always silent, strict or not ------ #]
+existence check stays silent : [if @missing]has it[else]missing, no error[/if]
+zero iterations, no error    : [for v in @missing][= @v][/for](none)
+still silent when defined @ is used : [= defined @missing]
+
+[# --- inside a COMPUTED expression, an undefined ref is UNGUARDED: it
+   reads as '' and the comparison just runs, strict or not #]
+unguarded in a computed expression : [= @missing == ""]
+
+[# --- filter arguments are never strict-guarded either, default: included #]
+default: still catches it, no error : [= @missing | default: "fallback"]
+
+[# --- arithmetic on '' fails in ANY mode — that's a type error, not a
+   strict-mode error: [= @missing + 1] would abort the render whether or
+   not --strict is set, since '' is not a Number. Not executed here. #]

@@ -1,0 +1,60 @@
+[# ===================================================================
+   ldt-lang — getting data INTO a render. Two ways in:
+
+     PHP:  Ldt::render($source, $data, $strict = false, $file = null, $trim = true)
+           Ldt::renderFile($path, $data, $strict = false, $trim = true)
+           $data is a plain PHP array — scalars are stringified (bool
+           true/false -> "1"/"0", null -> ""), nested arrays stay nested.
+
+     CLI:  bin/ldt --set k=v <file>     dotted key builds a nested path
+           bin/ldt --json data.json <f>  seeds from a JSON object
+           flags are read left-to-right and a LATER flag wins on overlap;
+           an inline [set] in the template overrides either at render time.
+
+   Run this file with:
+     php bin/ldt --json examples/data.json examples/feeding-data-in.ldt
+   =================================================================== #]
+
+[# --- values seeded from data.json flow straight onto @ paths ------------ #]
+Hello, [= @user.name | default: "guest"]!
+Contact: [= @user.email | default: "no email on file"]
+
+[# --- a seeded JSON list iterates like any other array ------------------- #]
+Order ([= count @cart] line[if count @cart > 1]s[/if]):
+[for line in @cart]
+  [= @loop.index]/[= @loop.count]. [= @line.item] x [= @line.qty][if not @loop.last] |[/if]
+[/for]
+
+[# --- a seeded JSON null becomes an empty string: present, not absent ---- #]
+note is defined     : [= defined @note]
+note reads as empty : "[= @note]"
+default: still fires, since empty is falsy : [= @note | default: "(none)"]
+
+[# --- an inline [set] can override anything seeded before the render ----- #]
+before override : [= @user.name]
+[set user.name = Override]
+after override  : [= @user.name]
+
+[# --- --set builds a nested path from a dotted key, same as [set] --------
+   bin/ldt --set user.name=Ada --set user.email=ada@ldt.dev examples/feeding-data-in.ldt
+   would seed user.name/user.email directly; the flags themselves can't be
+   shown executing from inside a .ldt file, only their effect. Not run here. #]
+
+[# --- --json deep-merges MAPS key by key, but a JSON list REPLACES the
+   previous value wholesale (no element-wise merge) — and with multiple
+   --json/--set flags, whichever comes LAST on the command line wins:
+     bin/ldt --json a.json --json b.json file.ldt
+   if a.json has "cart": [...] and b.json also has "cart": [...], b's
+   list fully replaces a's, it does not append or merge entries. Not
+   demonstrated here since it needs two separate flag invocations. #]
+
+[# --- numeric-looking keys collide with integer array positions, exactly
+   like the dot-path rule in assignment.ldt (.01 and .1 land on the same
+   slot): a JSON object key "1" and a JSON list's second element (index 1)
+   address the very same slot if merged onto the same path, since PHP (and
+   ldt-lang) key arrays by int wherever a key is purely numeric text. Not
+   executed here — see assignment.ldt for a runnable version of the rule. #]
+
+[# --- seeded values are scalars/null/arrays only; anything else (an
+   object, a resource) is a loud PHP-side error at seed time, before the
+   render even starts. Not executed here. #]

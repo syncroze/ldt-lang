@@ -7,12 +7,23 @@
 <link rel="stylesheet" href="assets/style.css">
 <link rel="stylesheet" href="assets/ldt-theme.css">
 <style>
+.page {
+	max-width: 800px;
+	margin: 0 auto;
+	padding: 3rem 1.5rem 5rem;
+}
 .swatches {
 	display: grid;
-	grid-template-columns: 90px 1fr auto;
+	grid-template-columns: 90px 1fr;
 	gap: 0.5rem 1rem;
 	align-items: center;
 	margin: 1rem 0 2.5rem;
+}
+.swatch-wrap {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.25rem;
 }
 .swatch {
 	width: 90px;
@@ -22,11 +33,14 @@
 }
 .swatch-hex {
 	font-family: Consolas, Monaco, monospace;
+	font-size: 0.72rem;
 	color: #57606a;
 }
 </style>
 </head>
 <body>
+
+<div class="page">
 
 <h1>Theme colors</h1>
 <p class="tagline">Every color used on the <a href="index.html">docs site</a>. The
@@ -41,76 +55,62 @@ the stylesheet and this page follows.</p>
 <section>
 <h2>Prism "Tomorrow" (PHP / bash snippets)</h2>
 <div class="swatches">
-	<div class="swatch" style="background:#2d2d2d"></div>
-	<div class="swatch-label">Code block background</div>
-	<div class="swatch-hex">#2d2d2d</div>
-
-	<div class="swatch" style="background:#ccc"></div>
-	<div class="swatch-label">Default text, <code>.token.punctuation</code></div>
-	<div class="swatch-hex">#ccc</div>
-
-	<div class="swatch" style="background:#2d2d2d;border-color:#999"></div>
-	<div class="swatch-label"><code>.token.comment</code>, <code>.block-comment</code>, <code>.doctype</code>, <code>.cdata</code>, <code>.prolog</code></div>
-	<div class="swatch-hex">#999</div>
-
-	<div class="swatch" style="background:#e2777a"></div>
-	<div class="swatch-label"><code>.token.tag</code>, <code>.attr-name</code>, <code>.deleted</code>, <code>.namespace</code></div>
-	<div class="swatch-hex">#e2777a</div>
-
-	<div class="swatch" style="background:#6196cc"></div>
-	<div class="swatch-label"><code>.token.function-name</code></div>
-	<div class="swatch-hex">#6196cc</div>
-
-	<div class="swatch" style="background:#f08d49"></div>
-	<div class="swatch-label"><code>.token.number</code>, <code>.boolean</code>, <code>.function</code></div>
-	<div class="swatch-hex">#f08d49</div>
-
-	<div class="swatch" style="background:#f8c555"></div>
-	<div class="swatch-label"><code>.token.class-name</code>, <code>.constant</code>, <code>.property</code>, <code>.symbol</code></div>
-	<div class="swatch-hex">#f8c555</div>
-
-	<div class="swatch" style="background:#cc99cd"></div>
-	<div class="swatch-label"><code>.token.keyword</code>, <code>.atrule</code>, <code>.builtin</code>, <code>.important</code>, <code>.selector</code></div>
-	<div class="swatch-hex">#cc99cd</div>
-
-	<div class="swatch" style="background:#7ec699"></div>
-	<div class="swatch-label"><code>.token.string</code>, <code>.variable</code>, <code>.attr-value</code>, <code>.char</code>, <code>.regex</code></div>
-	<div class="swatch-hex">#7ec699</div>
-
-	<div class="swatch" style="background:#67cdcc"></div>
-	<div class="swatch-label"><code>.token.operator</code>, <code>.entity</code>, <code>.url</code></div>
-	<div class="swatch-hex">#67cdcc</div>
-
-	<div class="swatch" style="background:green"></div>
+	<div class="swatch-wrap"><div class="swatch" style="background:green"></div><div class="swatch-hex">green</div></div>
 	<div class="swatch-label"><code>.token.inserted</code></div>
-	<div class="swatch-hex">green</div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#f8c555"></div><div class="swatch-hex">#f8c555</div></div>
+	<div class="swatch-label"><code>.token.class-name</code>, <code>.constant</code>, <code>.property</code>, <code>.symbol</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#f08d49"></div><div class="swatch-hex">#f08d49</div></div>
+	<div class="swatch-label"><code>.token.number</code>, <code>.boolean</code>, <code>.function</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#e2777a"></div><div class="swatch-hex">#e2777a</div></div>
+	<div class="swatch-label"><code>.token.tag</code>, <code>.attr-name</code>, <code>.deleted</code>, <code>.namespace</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#6196cc"></div><div class="swatch-hex">#6196cc</div></div>
+	<div class="swatch-label"><code>.token.function-name</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#67cdcc"></div><div class="swatch-hex">#67cdcc</div></div>
+	<div class="swatch-label"><code>.token.operator</code>, <code>.entity</code>, <code>.url</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#7ec699"></div><div class="swatch-hex">#7ec699</div></div>
+	<div class="swatch-label"><code>.token.string</code>, <code>.variable</code>, <code>.attr-value</code>, <code>.char</code>, <code>.regex</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#cc99cd"></div><div class="swatch-hex">#cc99cd</div></div>
+	<div class="swatch-label"><code>.token.keyword</code>, <code>.atrule</code>, <code>.builtin</code>, <code>.important</code>, <code>.selector</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#2d2d2d;border-color:#999"></div><div class="swatch-hex">#999</div></div>
+	<div class="swatch-label"><code>.token.comment</code>, <code>.block-comment</code>, <code>.doctype</code>, <code>.cdata</code>, <code>.prolog</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#ccc"></div><div class="swatch-hex">#ccc</div></div>
+	<div class="swatch-label">Default text, <code>.token.punctuation</code></div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#2d2d2d"></div><div class="swatch-hex">#2d2d2d</div></div>
+	<div class="swatch-label">Code block background</div>
 </div>
 </section>
 
 <section>
 <h2>Page palette (<code>assets/style.css</code>)</h2>
 <div class="swatches">
-	<div class="swatch" style="background:#1f2328"></div>
+	<div class="swatch-wrap"><div class="swatch" style="background:#1f2328"></div><div class="swatch-hex">#1f2328</div></div>
 	<div class="swatch-label">Body text</div>
-	<div class="swatch-hex">#1f2328</div>
 
-	<div class="swatch" style="background:#57606a"></div>
+	<div class="swatch-wrap"><div class="swatch" style="background:#57606a"></div><div class="swatch-hex">#57606a</div></div>
 	<div class="swatch-label">Tagline / footer text</div>
-	<div class="swatch-hex">#57606a</div>
 
-	<div class="swatch" style="background:#f6f8fa;border-color:#d0d7de"></div>
-	<div class="swatch-label">TOC / inline <code>code</code> background, table header background</div>
-	<div class="swatch-hex">#f6f8fa</div>
-
-	<div class="swatch" style="background:#d0d7de"></div>
+	<div class="swatch-wrap"><div class="swatch" style="background:#d0d7de"></div><div class="swatch-hex">#d0d7de</div></div>
 	<div class="swatch-label">Borders (TOC, tables, nav, footer rule)</div>
-	<div class="swatch-hex">#d0d7de</div>
 
-	<div class="swatch" style="background:#fff;border-color:#d0d7de"></div>
+	<div class="swatch-wrap"><div class="swatch" style="background:#f6f8fa;border-color:#d0d7de"></div><div class="swatch-hex">#f6f8fa</div></div>
+	<div class="swatch-label">TOC / inline <code>code</code> background, table header background</div>
+
+	<div class="swatch-wrap"><div class="swatch" style="background:#fff;border-color:#d0d7de"></div><div class="swatch-hex">#fff</div></div>
 	<div class="swatch-label">Page background</div>
-	<div class="swatch-hex">#fff</div>
 </div>
 </section>
+
+</div>
 
 <script>
 (function () {
@@ -147,28 +147,32 @@ the stylesheet and this page follows.</p>
 	}
 
 	var rows = [
-		{ probe: null, property: 'backgroundColor',
-			label: 'Code block background' },
-		{ probe: 'tag',
-			label: '<code>.token.tag</code> container (base text); <code>.token.escape</code> matches it' },
-		{ probe: 'comment',
-			label: '<code>.token.comment</code> — <code>[# … #]</code> (italic)' },
-		{ probe: 'punctuation',
-			label: '<code>.token.punctuation</code> — all <code>[</code> <code>]</code> brackets, <code>( ) : ,</code>' },
-		{ probe: 'sigil',
-			label: '<code>.token.sigil</code> — the <code>@</code> on references' },
-		{ probe: 'keyword',
-			label: '<code>.token.keyword</code> — <code>set</code>, <code>if</code>, <code>for</code>, <code>and</code>, <code>to</code>, <code>count</code>… and the <code>=</code> of <code>[=</code>' },
-		{ probe: 'variable',
-			label: '<code>.token.variable</code> — declared names and <code>@path</code> references' },
 		{ probe: 'string',
 			label: '<code>.token.string</code> — <code>"quoted"</code> and unquoted values, bareword literals' },
 		{ probe: 'number',
 			label: '<code>.token.number</code>' },
-		{ probe: 'operator',
-			label: '<code>.token.operator</code> — <code>== + - * / % |</code>…' },
+		{ probe: 'variable',
+			label: '<code>.token.variable</code> — declared names and <code>@path</code> references' },
 		{ probe: 'function',
 			label: '<code>.token.function</code> — filter names (<code>upper</code>, <code>join</code>, <code>default</code>…)' },
+		{ probe: 'keyword',
+			label: '<code>.token.keyword</code> — <code>set</code>, <code>if</code>, <code>for</code>, <code>and</code>, <code>to</code>, <code>count</code>… and the <code>=</code> of <code>[=</code>' },
+		{ probe: 'comment',
+			label: '<code>.token.comment</code> — <code>[# … #]</code> (italic)' },
+		{ probe: 'sigil',
+			label: '<code>.token.sigil</code> — the <code>@</code> on references' },
+		{ probe: 'punctuation',
+			label: '<code>.token.punctuation</code> — all <code>[</code> <code>]</code> brackets, <code>( ) : ,</code>' },
+		{ probe: 'escape',
+			label: '<code>.token.escape</code> — a <code>\\</code>-escaped delimiter (italic)' },
+		{ probe: 'operator',
+			label: '<code>.token.operator</code> — <code>== + - * / % |</code>…' },
+		{ probe: 'tag',
+			label: '<code>.token.tag</code> — the <code>[ ]</code> construct wrapper as a whole' },
+		{ probe: null, property: 'color',
+			label: '<code>pre.language-ldt, code.language-ldt</code> — base text color' },
+		{ probe: null, property: 'backgroundColor',
+			label: '<code>pre.language-ldt, code.language-ldt</code> — background' },
 	];
 
 	var grid = document.getElementById('ldt-swatches');
@@ -179,17 +183,21 @@ the stylesheet and this page follows.</p>
 		swatch.className = 'swatch';
 		swatch.style.background = color;
 
-		var label = document.createElement('div');
-		label.className = 'swatch-label';
-		label.innerHTML = row.label;
-
 		var hex = document.createElement('div');
 		hex.className = 'swatch-hex';
 		hex.textContent = toHex(color);
 
-		grid.appendChild(swatch);
+		var wrap = document.createElement('div');
+		wrap.className = 'swatch-wrap';
+		wrap.appendChild(swatch);
+		wrap.appendChild(hex);
+
+		var label = document.createElement('div');
+		label.className = 'swatch-label';
+		label.innerHTML = row.label;
+
+		grid.appendChild(wrap);
 		grid.appendChild(label);
-		grid.appendChild(hex);
 	});
 
 	document.body.removeChild(pre);

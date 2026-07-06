@@ -1,0 +1,48 @@
+[# ===================================================================
+   ldt-lang — features deliberately left out, and the idiom that covers
+   the realistic need instead (see TASKS.md "Not planned" for the full
+   reasoning). Nothing here is a workaround for a bug — these are the
+   intended replacements for features that were considered and rejected.
+   =================================================================== #]
+
+[# --- no switch/case: [if]/[elseif]/[else] already covers it ------------- #]
+[set status = 404]
+[if @status == 200]OK[elseif @status == 404]Not Found[elseif @status == 500]Server Error[else]Unknown[/if]
+
+[# --- no ternary ?: — inline [if]…[else]…[/if] covers a full branch,
+   and | default: covers the common "value, or a fallback" shorthand ------- #]
+[set count = 3]
+inline if/else as a ternary : [if @count == 1]item[else]items[/if]
+default: as a ternary shorthand for a falsy value : [= @nickname | default: "anonymous"]
+
+[# --- no regex: contains / starts with / ends with cover realistic
+   template-level text checks; real validation belongs in the host app,
+   not the template ---------------------------------------------------- #]
+[set email = ada@example.com]
+looks like an email (has an @ and a dot) : [if @email contains "@" and @email contains "."]plausible[else]invalid[/if]
+[set path = /api/v2/users]
+starts with a path prefix : [if @path starts with "/api"]routed[else]unrouted[/if]
+
+[# --- no true/false/null literals: the two-type model already covers
+   them — a comparison textualizes to "1"/"0", and undefined already IS
+   the empty/null value; no keyword is needed for either ----------------- #]
+[set role = admin]
+[set isAdmin = [= @role == admin]]
+a comparison result stored as a flag : [= @isAdmin]
+[if @isAdmin]Admin[else]Not admin[/if]
+undefined already reads as empty, no "null" keyword needed : "[= @unset]"
+
+[# --- no custom/host-registered filters: only the fixed built-in set
+   (upper lower trim capitalize truncate join first last round abs html
+   default) ships; anything else is done in the host app before the data
+   is handed to the template, or after the render's string result comes
+   back out ------------------------------------------------------------- #]
+[set raw = "  ADA  "]
+built-in filters compose : [= @raw | trim | lower | capitalize]
+
+[# --- no [include]/[macro]: a template is always ONE self-contained file
+   — there is no cross-file composition or reusable callable blocks.
+   Reuse is a host-app concern: render sub-pieces separately in PHP and
+   pass the results in as plain string data, or assemble multiple
+   Ldt::render() calls yourself. Not executed here since it needs PHP
+   code, not template syntax. #]

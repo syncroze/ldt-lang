@@ -1,0 +1,56 @@
+[# ===================================================================
+   ldt-lang — escaping literal delimiters
+   Rule: '\' before a NON-alphanumeric character emits that character
+   literally; before a letter, digit, or end-of-line the backslash
+   itself is literal (so prose and Windows paths survive untouched).
+   =================================================================== #]
+
+[set x = hi]
+
+[# --- a literal emit tag --------------------------------------------- #]
+literal \[= ...] : \[= @x]
+the real thing    : [= @x]
+
+[# --- a literal tag of any kind ---------------------------------------- #]
+literal tag : \[set a = 1]
+
+[# --- a literal ] inside a value: quote it, or escape it --------------- #]
+[set q = "brackets [1] are free inside quotes"]
+quoted, no escape needed : [= @q]
+[set slf = a \] b]
+escaped in an unquoted value : [= @slf]
+[set blk]a \[/set] b[/set]
+escaped block closer : [= @blk]
+
+[# --- an unpaired literal [ in a self-closing value also needs escaping
+   (the = form counts [ ] pairs so [= ]/[if]/etc. can nest inside) ------- #]
+[set half = see \[1\] here]
+escaped [ and ] together : [= @half]
+
+[# --- \\ is a literal backslash, and \ before a letter/digit/EOL stays
+   literal too — ordinary prose and paths are untouched ----------------- #]
+windows path  : C:\Users\ldt
+literal slash : \\
+
+[# --- @ is never a delimiter — no escaping needed anywhere in text ----- #]
+handle in prose : say hi to @ada
+
+[# --- comments: opened with [# and closed by an exact \#] sentinel ---- #]
+[# a comment can span
+   multiple lines and renders nothing at all #]
+[# quotes do NOT protect a comment closer — only an escaped \#] keeps a
+   comment open past a stray hash-bracket #]
+[# here the comment contains an escaped closer \#] and keeps going
+   until the real one right here #]
+[# the hash is not shared between an opener and a closer — an
+   almost-empty comment needs both hashes present, one on each side #]
+
+literal unterminated form (escaped so it just prints) : \[#]
+literal minimal comment (escaped so it just prints)   : \[##]
+a real minimal comment, renders nothing                : [##]
+
+[# --- there is NO bare '\' escape inside an expression — only inside a
+   "quoted string" does the same escape rule apply (see expressions.ldt
+   for the full set of examples) ------------------------------------------ #]
+[set needsQuote = "a]b"]
+special char via a quoted string : [if @needsQuote == "a]b"]matched[/if]

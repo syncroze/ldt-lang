@@ -1,0 +1,52 @@
+[# ===================================================================
+   ldt-lang — the data model: Number / String / Array / undefined
+   A value is a Number when its TEXT matches [+-]?digits(.digits)?;
+   everything else is a String. Arrays nest via dot-paths (see
+   assignment.ldt). A name that was never set is undefined — ldt's
+   "null". The classification drives comparison/truthiness only — the
+   ORIGINAL TEXT is always what gets rendered.
+   =================================================================== #]
+
+[set id = 007]
+renders verbatim (leading zero kept) : [= @id]
+but compares as the number 7          : [= @id == 7]
+
+[# a string that merely LOOKS number-ish stays a String until its text
+   fully matches the number pattern #]
+[set code = 0x]
+"0x" is not a Number, so it is truthy and compares lexicographically:
+  truthy?           [if @code]yes[else]no[/if]
+  equals code       [= @code == "0x"]
+  equals number 0   [= @code == 0]
+
+[# --- falsy vs truthy ---------------------------------------------------
+   Falsy = empty string, undefined, numeric zero (0, 0.0, -0, +0), and an
+   empty array. Everything else is truthy — a non-numeric "0x" and a
+   NON-EMPTY array included. #]
+
+[set zero = 0][set zerof = 0.0][set negzero = -0][set poszero = +0][set blank = ]
+0        : [if @zero]truthy[else]falsy[/if]
+0.0      : [if @zerof]truthy[else]falsy[/if]
+-0       : [if @negzero]truthy[else]falsy[/if]
++0       : [if @poszero]truthy[else]falsy[/if]
+""       : [if @blank]truthy[else]falsy[/if]
+undefined: [if @nope]truthy[else]falsy[/if]
+
+[# a non-empty array is truthy — [if] tests PRESENCE, not text #]
+[set fruit. = apple][set fruit. = pear]
+non-empty array is truthy : [if @fruit]truthy[else]falsy[/if]
+
+[# an array that's been emptied down to nothing (see assignment.ldt's
+   [unset] section) is still DEFINED, but falsy — different from an
+   undefined name entirely #]
+[set solo. = only][unset solo.0]
+defined but emptied : defined=[= defined @solo] truthy=[if @solo]yes[else]no[/if]
+
+[# --- an array is never renderable text, and reads as '' in a comparison #]
+cannot render an array directly : <[= @fruit]>
+but it still compares as ''     : [= @fruit == ""]
+
+[# --- booleans textualize as 1 / 0 everywhere, never true/false words --- #]
+[set bigger = [= 5 > 2]][set smaller = [= 5 < 2]]
+5 > 2 stored and printed : [= @bigger]
+5 < 2 stored and printed : [= @smaller]

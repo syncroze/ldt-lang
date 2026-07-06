@@ -1,0 +1,96 @@
+[# ===================================================================
+   ldt-lang — [set] / [unset] / dot-paths
+   [set]/[unset] take a BARE name (a write target); @ only ever marks a
+   READ. Both set forms trim their value at the edges unless the whole
+   value is quoted.
+   =================================================================== #]
+
+[# --- the two set forms -------------------------------------------------- #]
+[set greeting]Hello[/set][set name = world]
+block form        : [= @greeting]
+self-closing form : [= @name]
+
+[# --- quoting: keep edge spaces, or store literal quotes ----------------- #]
+[set padded = "   spaced   "]
+kept edge spaces  : <[= @padded]>
+[set quoted = "she said \"hi\""]
+escaped interior quotes : [= @quoted]
+[set lit = \"quoted\"]
+escaped leading quote (stores the quote marks themselves) : [= @lit]
+
+[# a bare leading " that ISN'T a properly-quoted whole value is a loud
+   error (never silently mangled) — e.g. [set a = "yes" or "no"] fails;
+   write "yes\" or \"no" instead. Not executed here since it would abort
+   the render. #]
+
+[# --- values are mini-templates: [= ], [if], [for], self-closing [set]
+   all execute while a value is being built ------------------------------ #]
+[set price = 9][set qty = 3]
+nested computed value : [set total = [= @price * @qty + 5]][= @total]
+
+[set list][for x in 1 to 3][= @x] [/for][/set]
+a \[for] inside a value : [= @list]
+
+[# a [break]/[continue] inside a value binds to a [for] INSIDE that same
+   value — never to a loop outside it. Here the break only stops the
+   loop that lives inside the value: #]
+[set stopped][for n in 1 to 5][if @n == 3][break][/if][= @n] [/for][/set]
+break inside a value's own loop : [= @stopped]
+
+[# an unpaired literal [ or ] in a self-closing value needs \[ / \] since
+   the scanner counts bracket pairs so constructs can nest; a nested
+   BLOCK [set] (not self-closing) inside another block value is a loud
+   error instead (not executed here) #]
+[set bracket = see \[1\] there]
+escaped brackets in a value : [= @bracket]
+
+[# --- dot-paths: nest to any depth; a trailing dot appends -------------- #]
+[set fruit. = apple][set fruit. = pear][set fruit. = plum]
+appended array : [= @fruit.0] / [= @fruit.1] / [= @fruit.2]
+
+[set user.first = Ada][set user.last]Lovelace[/set]
+keyed          : [= @user.first] [= @user.last]
+
+[set order.items. = pen][set order.items. = ink][set order.total = 2]
+nested + keyed : [= @order.items.0] + [= @order.items.1] = [= @order.total]
+
+[# a purely numeric segment is an INT index, so .01 and .1 collide
+   (PHP's own array keying) #]
+[set arr.01 = first][set arr.1 = second]
+.01 and .1 are the same slot : [= @arr.1] (count [= count @arr])
+
+[# assigning a scalar over an existing map replaces it wholesale, and
+   silently — only descending INTO a scalar is a loud error #]
+[set thing.sub = 1][set thing = scalar]
+scalar replaced the map : [= @thing], old key gone: defined=[= defined @thing.sub]
+
+[# negative indexes are valid keys; the NEXT append after a lone
+   negative key starts at 0 (PHP's max-int-key-plus-one rule) #]
+[set neg.-1 = first]
+has the negative key : [if defined @neg.-1]yes[else]no[/if]
+[set neg. = next]
+append after a negative key lands on 0 : [= @neg.0]
+
+[# --- [unset]: removes a path entirely — undefined again, never "empty" #]
+[set tmp = scratch][unset tmp]
+after unset : <[= @tmp]> defined=[= defined @tmp]
+
+[# removing an array index leaves a HOLE — no reindexing; the next
+   append continues past the old maximum #]
+[unset fruit.1][set fruit. = damson]
+holes, no reindex : [= @fruit.0] [= @fruit.2] [= @fruit.3] (count [= count @fruit])
+
+[# unsetting every element leaves a defined-but-EMPTY (falsy) array,
+   different from unsetting the array itself #]
+[set solo. = only][unset solo.0]
+emptied array : defined=[= defined @solo] truthy=[if @solo]yes[else]no[/if]
+
+[# several paths at once; a missing path (or one through a scalar) is a
+   silent no-op #]
+[unset order.total, order.nothing, thing.sub]
+gone but harmless : <[= @order.total]> items still there: [= @order.items.0]
+
+[# reset-a-container idiom: unset first, then rebuild fresh — a plain
+   [set g = ...] would make it a scalar and break later [set g.k = v] #]
+[unset user][set user.name = Grace]
+rebuilt : [= @user.name] (old key gone: defined last=[= defined @user.last])

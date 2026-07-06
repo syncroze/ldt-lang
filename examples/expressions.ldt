@@ -1,37 +1,61 @@
-[# ldt-lang expressions — [= expr ] evaluates an expression and emits it.  #]
-[# References are bare @name and integer arithmetic is on.                 #]
-[# (Labels escape the opener as \[= so they print instead of evaluating.)  #]
+[# ===================================================================
+   ldt-lang — expressions: arithmetic, comparisons, defined/count,
+   boolean logic, and the substring operators. Available inside [= ],
+   [if]/[elseif] conditions, and [for … in a to b] range bounds.
+   =================================================================== #]
 
-[# --- arithmetic: + - * (integer) / % , with * / % before + - , and ( ) - #]
-2 + 3       = [= 2 + 3]
-10 - 4      = [= 10 - 4]
-4 * 5       = [= 4 * 5]
-10 / 3      = [= 10 / 3]      [# integer division truncates toward zero #]
-10 % 3      = [= 10 % 3]
-2 + 3 * 4   = [= 2 + 3 * 4]   [# * binds tighter than + #]
-(2 + 3) * 4 = [= (2 + 3) * 4]
--5 + 8      = [= -5 + 8]      [# unary minus #]
+[# --- integer arithmetic: + - * / % ; / truncates toward zero -------- #]
+[set a = 17][set b = 5]
+add / sub / mul     : [= @a + @b] / [= @a - @b] / [= @a * @b]
+div truncates       : [= @a / @b]
+modulo              : [= @a % @b]
+precedence          : [= 2 + 3 * 4]
+parens override it  : [= (2 + 3) * 4]
+unary minus         : [= -@a + 20]
 
-[# --- references inside expressions (bare @name) ----------------------- #]
-[set price = 20][set qty = 3]
-Subtotal: [= @price * @qty]
+[# --- comparisons: numeric if both operands are Numbers, else lexicographic #]
+[set x = 5][set y = "5.0"]
+numeric equal (5 == 5.0)     : [= @x == @y]
+lexicographic (text compare) : [= "apple" < "banana"]
+not equal / less / greater   : [= @a != @b] / [= @b < @a] / [= @b > @a]
 
-[# --- count @array : array length (undefined → 0, scalar → error) ------- #]
-[set tags. = a][set tags. = b][set tags. = c]
-Tag count: [= count @tags]          [# → 3 #]
-Have tags? [if count @tags > 0]yes[else]no[/if]
+[# --- defined / count ---------------------------------------------------- #]
+[set items. = pen][set items. = ink]
+defined existing / missing : [= defined @items] / [= defined @nope]
+count of an array          : [= count @items]
+count of undefined is 0    : [= count @nope]
+[# count on a SCALAR is a loud error — @a holds a number, not an array;
+   not executed here since it would abort the render #]
 
-[# --- compute-and-store: an emit nests inside a [set] value ------------- #]
-[set total = [= @price * @qty + 5]]
-Total (with 5 shipping): [= @total]
+[# --- boolean logic: and / or / not, with parens ------------------------- #]
+[set age = 20][set vip = 1]
+and / or / not : [= @age >= 18 and @vip] / [= @age < 13 or @vip] / [= not @vip]
+grouped        : [= (@age >= 18 and @vip) or @age > 65]
 
-[# --- a running counter in a loop -------------------------------------- #]
-[set sum = 0]
-Running sum: [for n in 1 to 5][set sum = [= @sum + @n]][= @sum] [/for]
+[# --- substring operators: contains / starts with / ends with ----------- #]
+[set file = report.pdf]
+contains    : [= @file contains "port"]
+starts with : [= @file starts with "report"]
+ends with   : [= @file ends with ".pdf"]
+negate      : [= not @file contains "xlsx"]
+case-sensitive (byte-wise, like ==) : [= @file contains "PORT"]
+empty needle is always found        : [= @file contains ""]
 
-[# --- comparison / logic render as 1 (true) or 0 (false) ---------------- #]
-[set age = 20]
-Adult flag (age >= 18): [= @age >= 18]
+[# --- the hyphen-is-subtraction trap: quote hyphenated barewords --------- #]
+[set role = super-admin]
+[# [= @role == super-admin] would parse "super - admin" as arithmetic and
+   fail — quote it instead: #]
+quoted hyphenated literal : [= @role == "super-admin"]
 
-[# --- a literal [= ] is written with a backslash ------------------------ #]
-literal: \[= 1 + 2]
+[# a negative array index reads fine in [if]/[for] (no arithmetic there),
+   but [= @path.-1] inside this arithmetic context would read the '-' as
+   subtraction and error — iterate to reach such a slot instead (see
+   loops.ldt). Not executed here. #]
+
+[# --- quoted strings support escapes and may span multiple lines -------- #]
+[set quip = "she said \"hi\" back"]
+escaped quotes in a string : [= @quip]
+
+[# --- +5 / +0: an optional leading + is still a Number ------------------ #]
+[set plus = +5]
++5 compares as 5, and +0 is falsy like -0 : [= @plus == 5] / [if +0]truthy[else]falsy[/if]

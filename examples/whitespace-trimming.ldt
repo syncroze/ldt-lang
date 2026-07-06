@@ -1,0 +1,47 @@
+[# ===================================================================
+   ldt-lang — whitespace trimming. A line whose ONLY content is
+   directives/comments (no real text, no [= ] output) is "standalone":
+   it's removed along with its trailing newline, so a tag on its own
+   line leaves no blank line behind. Pass --no-trim to disable this.
+   =================================================================== #]
+[set greeting = hi]
+BEFORE
+[set unused = 1]
+AFTER
+[# a standalone comment leaves no gap above or below #]
+STILL ADJACENT
+
+[# --- a line with real text alongside a directive is left untouched ----- #]
+BEFORE
+text on the same line as [set inline = 1] a directive
+AFTER
+
+[# --- a line with an [= ] emit is NEVER trimmed, even if it looks bare --- #]
+BEFORE
+[= @greeting]
+AFTER
+
+[# --- [if]/[for] headers and closers are standalone lines too ----------- #]
+BEFORE
+[if @greeting]
+kept
+[/if]
+AFTER
+
+[# --- escaped whitespace does NOT protect a standalone line: you might
+   expect "\ " to force this line to count as real text and survive, but
+   by the time the trimmer decides, an escaped space is already plain
+   whitespace — so a directive line padded only with escaped spaces
+   still trims away, same as if the spaces were unescaped -------------- #]
+BEFORE
+[set padded = 1]\ \ 
+AFTER
+
+[# --- only \n ends a line for the trimmer; CRLF works fine (the \r trims
+   away with its line) but a CR-only file is one long line: nothing trims
+   and the \r characters render through as ordinary text. Not demonstrated
+   here since it needs a real CR-only file, not an escaped-\r line. #]
+
+[# --- run this same file with --no-trim to see every standalone line's
+   blank line preserved instead:
+     php bin/ldt --no-trim examples/whitespace-trimming.ldt #]

@@ -4,615 +4,439 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ldt-lang — Logic Driven Text Language</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
 <link rel="stylesheet" href="assets/style.css">
 <link rel="stylesheet" href="assets/ldt-theme.css">
 </head>
 <body>
 
-<h1>ldt-lang</h1>
-<p class="tagline">Logic Driven Text Language — a small, dependency-free embeddable templating engine for PHP. Everything is literal text until a bracket construct appears.</p>
+<div class="layout">
 
-<nav class="links">
-	<a href="https://github.com/syncroze/ldt-lang">GitHub</a>
-	<a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">Tasks</a>
-	<a href="https://github.com/syncroze/ldt-lang/blob/master/HISTORY.md">Design history</a>
-	<a href="https://github.com/syncroze/ldt-lang/blob/master/FILES.md">File structure</a>
-</nav>
+	<button type="button" class="sidebar-toggle" aria-expanded="false" aria-controls="sidebar">
+		☰ Menu
+	</button>
+	<div class="sidebar-overlay"></div>
 
-<nav class="toc">
-	<strong>Contents</strong>
-	<ol>
-		<li><a href="#data-model">Data model</a></li>
-		<li><a href="#assignment">Assignment &amp; emitting</a></li>
-		<li><a href="#conditionals">Conditionals</a></li>
-		<li><a href="#loops">Loops</a></li>
-		<li><a href="#expressions">Expressions</a></li>
-		<li><a href="#filters">Filters</a></li>
-		<li><a href="#escaping">Escaping literal delimiters</a></li>
-		<li><a href="#feeding-data-in">Feeding data in</a></li>
-		<li><a href="#strict-mode">Strict mode</a></li>
-		<li><a href="#run-it">Run it</a></li>
-		<li><a href="#editor-support">Editor support</a></li>
-		<li><a href="#not-possible">What is not possible</a></li>
-		<li><a href="#excluded-features">Deliberately excluded features</a></li>
-		<li><a href="#status">Status</a></li>
-		<li><a href="#caveats">Caveats &amp; edge cases</a></li>
-	</ol>
-</nav>
+	<aside class="sidebar" id="sidebar">
+		<div class="sidebar-brand">
+			<h1>ldt-lang</h1>
+			<p class="tagline">Logic Driven Text Language — a small, dependency-free embeddable templating engine for PHP.</p>
+		</div>
 
-<p>The engine is a four-stage <code>Lexer → Trimmer → Parser → Interpreter</code> pipeline with a bracket-tag surface syntax and a <strong>nested</strong> data model.</p>
+		<nav class="links">
+			<a href="https://github.com/syncroze/ldt-lang">GitHub</a>
+			<a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">Tasks</a>
+			<a href="https://github.com/syncroze/ldt-lang/blob/master/HISTORY.md">Design history</a>
+			<a href="https://github.com/syncroze/ldt-lang/blob/master/FILES.md">File structure</a>
+		</nav>
 
-<p><strong>The whole surface in one breath:</strong> <code>[...]</code> is a construct, <code>@path</code> reads a variable (only inside constructs), <code>[= expr]</code> evaluates and emits, <code>\</code> escapes — everything else is literal text. Writes take a bare name (<code>[set name]</code>, <code>[unset name]</code>, <code>[for k, v]</code>); reads carry the <code>@</code>.</p>
+		<nav class="sidebar-toc">
+			<strong>Contents</strong>
+			<ol>
+				<li><a href="#data-model">1. Data model</a></li>
+				<li><a href="#assignment">2. Assignment — <code>[set]</code> / <code>[unset]</code></a></li>
+				<li><a href="#emit">3. Emitting — <code>[= ]</code></a></li>
+				<li><a href="#expressions">4. Expressions</a></li>
+				<li><a href="#filters">5. Filters</a></li>
+				<li><a href="#conditionals">6. Conditionals</a></li>
+				<li><a href="#loops">7. Loops</a></li>
+				<li><a href="#escaping">8. Escaping literal delimiters</a></li>
+				<li><a href="#feeding-data-in">9. Feeding data in</a></li>
+				<li><a href="#strict-mode">10. Strict mode</a></li>
+				<li><a href="#whitespace-trimming">11. Whitespace trimming</a></li>
+				<li><a href="#resource-limits">12. Resource limits</a></li>
+				<li><a href="#not-possible">13. What is not possible</a></li>
+				<li><a href="#run-it">Run it</a></li>
+				<li><a href="#editor-support">Editor support</a></li>
+				<li><a href="#status">Status</a></li>
+			</ol>
+		</nav>
+	</aside>
 
-<section id="data-model">
-<h2>Data model — two types, nested arrays, undefined</h2>
+	<main class="content">
+	<div class="content-inner">
 
-<p>A value is classified by its <em>text</em>:</p>
+	<h1 class="page-title">ldt-lang</h1>
+	<p class="page-tagline">Logic Driven Text Language — a small, dependency-free embeddable templating engine for PHP. Everything is literal text until a bracket construct appears.</p>
 
-<table>
-<thead><tr><th>Type</th><th>Rule</th><th>Examples</th></tr></thead>
-<tbody>
-<tr><td><strong>Number</strong></td><td>text matches <code>[+-]?digits(.digits)?</code></td><td><code>5</code>, <code>-3</code>, <code>+5</code>, <code>0.5</code>, <code>007</code></td></tr>
-<tr><td><strong>String</strong></td><td>everything else</td><td><code>hi</code>, <code>on</code>, <code>0x</code>, <code>3px</code></td></tr>
-<tr><td><strong>Array</strong></td><td>built by dot-path sets or seeded data; nests to any depth</td><td><code>items.0</code>, <code>user.first</code></td></tr>
-<tr><td><strong>undefined</strong></td><td>a name never set — ldt's "null"</td><td>renders empty, is falsy</td></tr>
-</tbody>
-</table>
+	<p>The engine is a four-stage <code>Lexer → Trimmer → Parser → Interpreter</code> pipeline with a bracket-tag surface syntax and a <strong>nested</strong> data model.</p>
 
-<p>The classification is a lens for comparison and truthiness — <strong>the original text is always preserved on output</strong>:</p>
+	<p><strong>The whole surface in one breath:</strong> <code>[...]</code> is a construct, <code>@path</code> reads a variable (only inside constructs), <code>[= expr]</code> evaluates and emits, <code>\</code> escapes — everything else is literal text. Writes take a bare name (<code>[set name]</code>, <code>[unset name]</code>, <code>[for k, v]</code>); reads carry the <code>@</code>. Every section below has a matching runnable file in <code>examples/</code>.</p>
 
-<pre><code class="language-ldt">[set id = 007][= @id] renders verbatim, but compares as a number: [= @id == 7]
-→ 007 renders verbatim, but compares as a number: 1</code></pre>
+	<section id="data-model">
+	<h2>1. Data model — two types, nested arrays, undefined</h2>
 
-<p><strong>Falsy</strong> = empty string, undefined, numeric zero (<code>0</code>, <code>0.0</code>, <code>-0</code>), and an empty array. Everything else is truthy — including the non-numeric string <code>0x</code> and a non-empty array (<code>[if @items]</code> tests presence; <code>count @items</code> its size; in a comparison an array still reads as <code>''</code>).</p>
-</section>
+	<p>A value is classified by its <em>text</em>, not by any declared type:</p>
 
-<section id="assignment">
-<h2>Assignment &amp; emitting</h2>
+	<table>
+	<thead><tr><th>Type</th><th>Rule</th><th>Examples</th></tr></thead>
+	<tbody>
+	<tr><td><strong>Number</strong></td><td>text matches <code>[+-]?digits(.digits)?</code></td><td><code>5</code>, <code>-3</code>, <code>+5</code>, <code>0.5</code>, <code>007</code></td></tr>
+	<tr><td><strong>String</strong></td><td>everything else</td><td><code>hi</code>, <code>on</code>, <code>0x</code>, <code>3px</code></td></tr>
+	<tr><td><strong>Array</strong></td><td>built by dot-path sets or seeded data; nests to any depth</td><td><code>items.0</code>, <code>user.first</code></td></tr>
+	<tr><td><strong>undefined</strong></td><td>a name never set — ldt's "null"</td><td>renders empty, is falsy</td></tr>
+	</tbody>
+	</table>
 
-<h3 id="set-a-variable">Set a variable</h3>
+	<p>The classification is a lens for comparison and truthiness — <strong>the original text is always preserved on output</strong>:</p>
 
-<pre><code class="language-ldt">[set greeting]Hello[/set]        block form — the body is the value (spaces kept)
+	<pre><code class="language-ldt">[set id = 007]
+renders verbatim : [= @id]
+compares as a number : [= @id == 7]
+→ renders verbatim : 007
+→ compares as a number : 1</code></pre>
+
+	<p><strong>Falsy</strong> = empty string, undefined, numeric zero (<code>0</code>, <code>0.0</code>, <code>-0</code>, <code>+0</code>), and an empty array. Everything else is truthy — including the non-numeric string <code>"0x"</code> and a non-empty array. An array read directly still renders as <code>''</code> and compares as <code>''</code> — <code>[if @items]</code> tests presence, <code>count @items</code> its size.</p>
+
+	<p>A container that's been emptied down to zero elements (every key <code>[unset]</code>) is still <strong>defined</strong> — just falsy: <code>defined @a</code> is <code>1</code>, but <code>[if @a]</code> takes the else branch. Booleans have no literal — a comparison result <strong>textualizes as <code>1</code>/<code>0</code></strong>, so it can be stored and re-tested like any Number.</p>
+
+	<p>See <code>examples/data-model.ldt</code>.</p>
+	</section>
+
+	<section id="assignment">
+	<h2>2. Assignment — <code>[set]</code> / <code>[unset]</code></h2>
+
+	<pre><code class="language-ldt">[set greeting]Hello[/set]        block form — the body is the value (spaces kept)
 [set name = world]               self-closing form — value runs to ] (trimmed)</code></pre>
 
-<p>A <code>[set]</code>/<code>[unset]</code> name is a <strong>write target</strong>, so it is bare — no <code>@</code>. The <code>@</code> always and only means <em>read this value</em>.</p>
+	<p>A <code>[set]</code>/<code>[unset]</code> name is a <strong>write target</strong>, so it is bare — no <code>@</code>. The <code>@</code> always and only means <em>read this value</em>.</p>
 
-<p>Values are trimmed at the ends in both forms. To keep leading/trailing spaces, <strong>quote the whole value</strong> — the outer quotes are stripped and the inside kept verbatim:</p>
+	<p>Values are trimmed at the ends in both forms. To keep leading/trailing spaces, <strong>quote the whole value</strong> — the outer quotes are stripped and the inside kept verbatim. A value that <em>starts</em> with an unescaped <code>"</code> must be a properly quoted whole value (closing quote last, interior quotes escaped as <code>\"</code>) — anything else is a loud error, never a silently mangled value:</p>
 
-<pre><code class="language-ldt">[set pad = "   hello   "]       stores «   hello   » (no quotes)
+	<pre><code class="language-ldt">[set pad = "   hello   "]       stores «   hello   » (no quotes)
 [set say = "she said \"hi\""]   interior quotes escaped as \"
 [set lit = \"quoted\"]          escaped leading quote → stores «"quoted"»</code></pre>
 
-<p>A value that <em>starts</em> with an unescaped <code>"</code> must be a properly quoted whole value (closing quote last, interior quotes escaped) — anything else is an error, never a silently mangled value.</p>
+	<p><strong>Values are mini-templates.</strong> A <code>[set]</code> value renders exactly like body text — into the variable instead of the output — so <code>[= ]</code>, <code>[if]</code>, <code>[for]</code> and nested self-closing <code>[set]</code>s execute inside values. The self-closing form scans <strong>bracket-aware</strong>, counting <code>[</code>&nbsp;<code>]</code> pairs so a computed <code>[= ]</code> nests directly:</p>
 
-<p><strong>Values are mini-templates.</strong> A <code>[set]</code> value renders exactly like body text — into the variable instead of the output — so <code>[= ]</code>, <code>[if]</code>, <code>[for]</code> and nested self-closing <code>[set]</code>s execute inside values. The self-closing form counts <code>[</code>&nbsp;<code>]</code> pairs, so nested constructs keep their own closers:</p>
+	<pre><code class="language-ldt">[set greeting]Hello [if @vip]dear [/if][= @name][/set]
+[set total = [= @price * @qty + 5]]     nests fine — the scan pairs [ ]
+[set stopped][for n in 1 to 5][if @n == 3][break][/if][= @n] [/for][/set]</code></pre>
 
-<pre><code class="language-ldt">[set greeting]Hello [if @vip]dear [/if][= @name][/set]
-[set msg = Hello [= @name]!]
-[set total = [= @price * @qty + 5]]
-[set list][for x in @items][= @x],[/for][/set]</code></pre>
+	<p>A <code>[break]</code>/<code>[continue]</code> inside a value only binds to a <code>[for]</code> <em>inside that same value</em> — it cannot reach a loop outside it, since a value is its own render scope. An <em>unpaired</em> literal bracket in a self-closing value still needs escaping (<code>\[</code> / <code>\]</code>) or the whole value quoted; a nested <em>block</em> set inside a block set is a loud error (the outer scan stops at the first <code>[/set]</code>). Errors inside values carry exact template coordinates.</p>
 
-<p>Escape a literal tag (<code>\[if</code>) — and an <em>unpaired</em> literal bracket in a self-closing value (<code>\[</code> / <code>\]</code>), since the scan pairs them. Two boundaries: a nested <em>block</em> set inside a block set is a loud error (the outer scan stops at the first <code>[/set]</code>), and a <code>[break]</code>/<code>[continue]</code> inside a value cannot affect a loop <em>outside</em> it — a value is its own render scope. Errors inside values carry exact template coordinates.</p>
+	<p><strong>Dot-paths</strong> nest to any depth. A <code>.</code> descends one level; a <strong>trailing dot</strong> appends at the next index; a purely numeric segment is normalized to an <strong>integer index</strong>, so <code>.01</code> and <code>.1</code> address the very same slot as an appended index <code>1</code>. Intermediate arrays are created on demand.</p>
 
-<h3 id="remove-a-variable">Remove a variable — <code>[unset]</code></h3>
-
-<pre><code class="language-ldt">[unset draft]                    the name becomes undefined again
-[unset user.email]               remove one key; siblings stay
-[unset a, b.c, items.1]          multiple comma-separated paths</code></pre>
-
-<p><code>[unset path]</code> removes the value entirely (subtree included) — afterward <code>defined</code> is false, strict mode errors on it, and fallbacks catch it. It is a no-op when the path doesn't exist (idempotent). Removing an array index leaves a hole (no reindexing); <code>[unset g][set g.k = v]</code> is the idiom for resetting a container.</p>
-
-<h3 id="interpolate">Emit a value — <code>[= ]</code></h3>
-
-<pre><code class="language-ldt">[= @greeting], [= @name]!</code></pre>
-
-<p><code>[= expr]</code> evaluates an expression and emits the result. The simplest expression is a single reference, so <code>[= @name]</code> is the everyday interpolation. It has a clear close, so it splices anywhere — even mid-word: <code>con[= @mid]tetur</code>. A <code>@</code> in plain text is <em>always</em> literal — emails (<code>a@b.com</code>) and handles (<code>(@ada)</code>) need no escaping, ever.</p>
-
-<p><strong>Fallback for falsy values — the <code>default:</code> filter.</strong> It triggers when the value is <strong>falsy</strong> — undefined, empty, numeric zero, or an empty array — the same rule <code>[if]</code> uses. <code>007</code> and <code>"0x"</code> are truthy and pass through. Its argument is a full expression, and chaining gives cascading fallbacks:</p>
-
-<pre><code class="language-ldt">Hello [= @user.name | default: "guest"]!
-[= @price | default: @basePrice]              a variable fallback
-[= @missing | default: @fb | default: "-"]    cascades through falsy values</code></pre>
-
-<h3 id="dot-paths">Dot-paths (nested to any depth)</h3>
-
-<p>A <code>.</code> descends one level. A <strong>trailing dot</strong> means "append at the next index". A numeric segment is an index; a name segment is a key. Intermediate arrays are created on demand; descending through a scalar is an error.</p>
-
-<pre><code class="language-ldt">[set fruit. = apple]            append          → fruit[0]
+	<pre><code class="language-ldt">[set fruit. = apple]            append          → fruit[0]
 [set fruit. = banana]           append          → fruit[1]
 [set user.first = Ada]          keyed
 [set order.items. = pen]        nested + append → order.items[0]
-[set order.items.0.note = x]    nested keyed leaf
+[set a.01 = first][set a.1 = second]            same slot: a.1 = second</code></pre>
 
-[= @fruit.1]  [= @user.first]  [= @order.items.0]</code></pre>
+	<p><strong>Assigning a scalar over a map replaces it wholesale</strong> — <code>[set a.b = 1][set a = x]</code> silently drops the whole subtree, <code>a.b</code> becomes undefined. Only the reverse is loud: <em>descending into</em> a scalar (<code>[set a = x][set a.b = 1]</code>) is a <code>cannot descend into scalar</code> error. Negative indexes are valid keys (<code>[set a.-1 = v]</code>); an append landing after a lone negative key starts at <code>0</code> (PHP's max-int-key-plus-one rule).</p>
 
-<h3 id="comment">Comment</h3>
+	<p><strong><code>[unset]</code> removes; it never empties.</strong></p>
 
-<pre><code class="language-ldt">[# renders to nothing; may span multiple lines #]</code></pre>
+	<pre><code class="language-ldt">[unset draft]                    the name becomes undefined again
+[unset user.email]               remove one key; siblings stay
+[unset a, b.c, items.1]          multiple comma-separated paths</code></pre>
 
-<p>Standalone directive/comment lines are trimmed (no leftover blank line). Pass <code>--no-trim</code> to keep them.</p>
-</section>
+	<ul>
+	<li>Afterward <code>defined</code> is <code>0</code>, strict mode errors on it, and fallbacks catch it — it's undefined, not an empty value.</li>
+	<li><strong>Idempotent</strong>: a no-op when the path is already missing or passes through a scalar.</li>
+	<li>Removing an array <strong>index</strong> leaves a hole — no reindexing; the next append continues past the old maximum.</li>
+	<li>Removing the <strong>last</strong> key leaves a defined-but-falsy-empty array (<code>defined</code> → 1, <code>[if]</code> → false, <code>count</code> → 0).</li>
+	<li>Reset-a-container idiom: <code>[unset g][set g.k = v]</code> — a plain <code>[set g = ]</code> would make <code>g</code> a scalar and a later <code>g.k</code> set would error.</li>
+	</ul>
 
-<section id="conditionals">
-<h2>Conditionals</h2>
+	<p>See <code>examples/assignment.ldt</code>.</p>
+	</section>
 
-<pre><code class="language-ldt">[if @role == admin]Admin[elseif @role == editor]Editor[else]Guest[/if]</code></pre>
+	<section id="emit">
+	<h2>3. Emitting — <code>[= ]</code></h2>
 
-<p>A reference is <code>@name</code>; a bareword is an <em>unquoted string literal</em>, so the <code>@</code> is what marks "this is a variable".</p>
+	<pre><code class="language-ldt">[= @greeting], [= @name]!</code></pre>
 
-<ul>
-<li>comparisons <code>== != &lt; &gt; &lt;= &gt;=</code>; both operands numeric → numeric compare (<code>5 == 5.0</code>, <code>007 == 7</code>), otherwise lexicographic</li>
-<li>substring tests <code>contains</code>, <code>starts with</code>, <code>ends with</code> — case-sensitive, on the text form; usable in <code>[= ]</code> too and negated with <code>not</code>: <code>[if @file ends with ".pdf"]</code>, <code>[if @email contains "@"]</code></li>
-<li>boolean logic <code>and</code> / <code>or</code> / <code>not</code> with parentheses <code>( )</code></li>
-<li><code>defined @path</code> tests existence</li>
-<li>literals with spaces use <code>"quotes"</code></li>
-<li>falsy = empty string, undefined, numeric zero, and an empty array; everything else truthy — a non-empty array included (<code>[if @items]</code>)</li>
-<li>the <code>]</code> is the body boundary, so <code>[if @a] yes[/if]</code> keeps the leading space as body</li>
-</ul>
+	<p><code>[= expr]</code> evaluates an expression and emits the result — the ONE emit tag, for plain interpolation and for computed values alike. The simplest expression is a single reference, so <code>[= @name]</code> is the everyday interpolation. It has a clear close, so it splices anywhere — even mid-word: <code>con[= @mid]tetur</code>.</p>
 
-<p>See <code>examples/conditions.ldt</code>.</p>
-</section>
+	<p>A <code>@</code> in plain text is <strong>always literal</strong> — emails (<code>a@b.com</code>) and handles (<code>@ada</code>) need no escaping, ever; <code>[= @path]</code> is the only thing that reads a variable in body text.</p>
 
-<section id="loops">
-<h2>Loops</h2>
+	<p><strong>Fallback for falsy values — the <code>default:</code> filter.</strong> It triggers on the same <strong>falsy</strong> rule <code>[if]</code> uses — undefined, empty, numeric zero, or an empty array. A genuine <code>0</code> is falsy too, so an attached fallback swallows it (don't attach one if a real zero must survive, or guard with <code>defined</code> first):</p>
 
-<pre><code class="language-ldt">[for v in @items] … [/for]           one-var: value only
+	<pre><code class="language-ldt">Hello [= @user.name | default: "guest"]!
+[= @zero]                          a real 0, no fallback attached : 0
+[= @zero | default: "-"]           the same 0, WITH a fallback    : -
+[= @missing | default: @fb | default: "-"]     cascades through falsy values</code></pre>
+
+	<p>Its argument is a <strong>full expression</strong>, evaluated <strong>lazily</strong> — only when the fallback actually fires, so an error inside an unused fallback (<code>| default: 1 / 0</code>) never surfaces. A plain <code>@ref</code> argument reads the value <strong>raw</strong>, so an array can be the fallback for another array.</p>
+
+	<p>There is no self-nesting — <code>[= ]</code> is already expression context, so use plain <code>( )</code> grouping instead, and a range bound cannot be an <code>[= ]</code> expression (compute into a variable first):</p>
+
+	<pre><code class="language-ldt">[= [= 1 + 1] + 1]      →  error
+[= (1 + 1) + 1]        →  ok
+[for n in 1 to [= @x + 1]]…          →  error
+[set hi = [= @x + 1]][for n in 1 to @hi]…   →  ok</code></pre>
+
+	<p>See <code>examples/emit.ldt</code>.</p>
+	</section>
+
+	<section id="expressions">
+	<h2>4. Expressions</h2>
+
+	<p>Available inside <code>[= ]</code>, <code>[if]</code>/<code>[elseif]</code> conditions, and <code>[for … in a to b]</code> range bounds. References are bare <code>@name</code>, barewords are string literals.</p>
+
+	<pre><code class="language-ldt">Subtotal: [= @price * @qty]
+precedence : [= 2 + 3 * 4]        → 14  (* / % bind tighter than + -)
+parens override it : [= (2 + 3) * 4]   → 20
+unary minus : [= -@a + 20]</code></pre>
+
+	<ul>
+	<li><strong>Integer arithmetic:</strong> <code>+  -  *  /  %</code> — <code>/</code> truncates toward zero; operands must be integers (a non-integer, or <code>/ 0</code> / <code>% 0</code>, is an error). A float <em>literal</em> like <code>5.0</code> is rejected the same way.</li>
+	<li><strong>Comparisons</strong> <code>== != &lt; &gt; &lt;= &gt;=</code> are type-aware: both operands numeric → numeric compare (<code>5 == 5.0</code>, <code>007 == 7</code>), otherwise lexicographic (<code>"apple" &lt; "banana"</code>).</li>
+	<li><code>defined @path</code> tests existence; <code>count @array</code> gives an array's length (undefined → <code>0</code>, a scalar → a loud error). Both are context-sensitive, not reserved words — they act as operators only when followed by a <code>@reference</code>.</li>
+	<li><strong>Boolean logic</strong> <code>and</code> / <code>or</code> / <code>not</code>, with <code>( )</code> grouping.</li>
+	<li><strong>Substring operators</strong> <code>contains</code> / <code>starts with</code> / <code>ends with</code> — case-sensitive and byte-wise (like <code>==</code>); an empty needle is always found; <code>starts</code>/<code>ends</code> require the <code>with</code>.</li>
+	</ul>
+
+	<pre><code class="language-ldt">[= @file contains "port"]       [= @file starts with "report"]
+[= not @file contains "xlsx"]   [= @file contains ""]     → always 1</code></pre>
+
+	<p>Because arithmetic is on inside <code>[= ]</code>, <code>-</code> is the subtract operator — an unquoted hyphenated bareword parses as arithmetic and fails; quote it. The same trade-off hits a <strong>negative array index</strong>: <code>@a.-1</code> reads fine in <code>[if]</code>/<code>[for]</code> (no arithmetic there), but inside <code>[= ]</code> the <code>-</code> is subtraction, so reach such a slot by iteration instead:</p>
+
+	<pre><code class="language-ldt">[= @role == super-admin]      →  error (parsed as super − admin)
+[= @role == "super-admin"]    →  ok</code></pre>
+
+	<p>Quoted strings support escapes (<code>\"</code>, <code>\\</code>) and may span multiple lines — this is the <em>only</em> place a bare <code>\</code> escape works inside an expression (see §8). A leading <code>+</code> is still a Number: <code>+5</code> compares as <code>5</code>, and <code>+0</code> is falsy like <code>-0</code>.</p>
+
+	<p>See <code>examples/expressions.ldt</code>.</p>
+	</section>
+
+	<section id="filters">
+	<h2>5. Filters</h2>
+
+	<p>A postfix pipe chain transforms a value on its way out. It lives <strong>only in <code>[= ]</code></strong> (never in <code>[if]</code>/<code>[for]</code> conditions); args follow a <code>:</code>, separated by commas, and each arg is a <strong>full expression</strong>:</p>
+
+	<pre><code class="language-ldt">[= @name | trim | upper]
+[= @items | join: ", "]
+[= @text | truncate: @width - 2, "…"]</code></pre>
+
+	<table>
+	<thead><tr><th>Filter</th><th>Behavior</th></tr></thead>
+	<tbody>
+	<tr><td><code>upper</code> / <code>lower</code></td><td>change case (ASCII-only — <code>é</code> passes through untouched)</td></tr>
+	<tr><td><code>trim</code></td><td>strip surrounding whitespace</td></tr>
+	<tr><td><code>capitalize</code></td><td>uppercase the first character</td></tr>
+	<tr><td><code>truncate: n [, suffix]</code></td><td>cut to <code>n</code> <em>bytes</em>, never splitting a UTF-8 character</td></tr>
+	<tr><td><code>join: sep</code></td><td>array → string (sep defaults to empty)</td></tr>
+	<tr><td><code>first</code> / <code>last</code></td><td>first / last element of an array</td></tr>
+	<tr><td><code>round [: n]</code></td><td>round to <code>n</code> decimals (default 0)</td></tr>
+	<tr><td><code>abs</code></td><td>absolute value</td></tr>
+	<tr><td><code>html</code></td><td>escape <code>&lt; &gt; &amp; " '</code> for HTML</td></tr>
+	<tr><td><code>default: value</code></td><td>fallback when the input is falsy (same rule as <code>[if]</code>)</td></tr>
+	</tbody>
+	</table>
+
+	<ul>
+	<li>Filters apply to the <strong>finished value</strong> — compute first, then pipe.</li>
+	<li>Arrays flow through the chain (into <code>join</code>/<code>first</code>/<code>last</code>), but the final result must be a scalar — ending on an array is a loud "add a join" error.</li>
+	<li><strong>A plain <code>@ref</code> argument reads the raw value</strong>, like the chain input — so an array can be the <code>default:</code> fallback for another array. Scalar-expecting args (<code>truncate</code>/<code>round</code>/<code>join</code>) still reject an array argument.</li>
+	<li><strong><code>truncate</code> is UTF-8 safe</strong>: when the byte cut lands inside a multi-byte character, the incomplete tail is dropped before the suffix is added.</li>
+	<li><code>default</code> alone also satisfies <code>--strict</code> for an undefined path; every other filter's <strong>arguments</strong> are never strict-guarded either way.</li>
+	<li><strong>Arity is enforced</strong> — extra or missing filter arguments are a loud error; no-arg filters (<code>upper</code>, <code>trim</code>, …) reject any argument.</li>
+	</ul>
+
+	<p>See <code>examples/filters.ldt</code>.</p>
+	</section>
+
+	<section id="conditionals">
+	<h2>6. Conditionals</h2>
+
+	<pre><code class="language-ldt">[if @role == admin]Admin[elseif @role == editor]Editor[else]Guest[/if]</code></pre>
+
+	<p>A reference is <code>@name</code>; a bareword is an <em>unquoted string literal</em>, so the <code>@</code> is what marks "this is a variable". Every comparison/logic/substring operator from §4 works here — <code>defined</code>, <code>count</code>, <code>and</code>/<code>or</code>/<code>not</code>, <code>contains</code>/<code>starts with</code>/<code>ends with</code> — routing on any of them:</p>
+
+	<pre><code class="language-ldt">[if count @cart &gt; 0]Cart has [= count @cart] item[if count @cart != 1]s[/if][else]Cart is empty[/if]
+[if @path starts with "/api"]API route[else]Page route[/if]
+[if @age &gt;= 18 or (@age &gt;= 13 and @hasConsent)]Allowed[else]Blocked[/if]</code></pre>
+
+	<p>Falsy = empty string, undefined, numeric zero, and an empty array; everything else is truthy — a non-empty array included. Argument-less markers (<code>[else]</code>, <code>[/if]</code>) accept whitespace before their closing <code>]</code> — <code>[else ]</code>, <code>[/if ]</code>. A duplicate <code>[else]</code>, or an <code>[elseif]</code> placed after an <code>[else]</code>, is a loud pointed error.</p>
+
+	<p>See <code>examples/conditionals.ldt</code>.</p>
+	</section>
+
+	<section id="loops">
+	<h2>7. Loops</h2>
+
+	<pre><code class="language-ldt">[for v in @items] … [/for]           one-var: value only
 [for k, v in @items] … [/for]        two-var: key/index + value
 [for n in 1 to 5] … [/for]           inclusive range (add 'by 2' for a step)
 [break]   [continue]                 inside a loop only</code></pre>
 
-<p>The loop variables are declarations (writes), so they are bare — <code>k</code>, <code>v</code> — while the iterable is a read: <code>@items</code>.</p>
+	<p>The loop variables are declarations (writes), so they are bare — <code>k</code>, <code>v</code> — while the iterable is a read: <code>@items</code>. A bare integer alone is <strong>not</strong> iterable — <code>[for n in 5]</code> errors; ranges need the <code>to</code> keyword.</p>
 
-<ul>
-<li>iterate any array by dot-path, including nested ones (<code>@order.items</code>)</li>
-<li><strong>nested iteration</strong>: a loop value may itself be a sub-array, so <code>[= @v]</code> renders empty but <code>[= @v.name]</code> resolves — loop over records</li>
-<li>ranges are <code>a to b</code> (inclusive), direction inferred (<code>3 to 1</code> counts down), optional <code>by step</code> (positive). Any bound may be a <code>@ref</code>, including the <strong>start</strong> (<code>@lo to @hi by @step</code>). Ranges stream lazily — a huge range costs time, never memory; bounds must fit the platform integer</li>
-<li>loop variables are block-scoped: they don't leak, and any prior binding of the same name is restored afterward</li>
-<li><code>[break]</code> / <code>[continue]</code> bind to the nearest enclosing loop; output emitted before them is kept</li>
-</ul>
+	<ul>
+	<li>Ranges are <code>a to b</code> (inclusive), direction inferred (<code>3 to 1</code> counts down), optional <code>by step</code>. Any bound — including the <strong>start</strong> — may be a <code>@ref</code>: <code>@lo to @hi by @step</code>.</li>
+	<li><strong>Nested/record iteration</strong>: a loop value may itself be a sub-array, so <code>[= @v]</code> renders empty but <code>[= @v.name]</code> resolves.</li>
+	<li><code>[break]</code> / <code>[continue]</code> bind to the <strong>nearest enclosing loop</strong>, even nested inside <code>[if]</code>s.</li>
+	<li>Loop variables are block-scoped — they don't leak, and any prior binding of the same name is restored afterward.</li>
+	</ul>
 
-<p><strong>Loop metadata</strong> — inside a <code>[for]</code> body, <code>@loop.*</code> describes the iteration: <code>loop.index</code> (1-based), <code>loop.index0</code> (0-based), <code>loop.first</code>, <code>loop.last</code> (each <code>1</code>/<code>0</code>), and <code>loop.count</code> (the total). Nested loops each get their own.</p>
+	<p><strong>Loop metadata</strong> — inside a <code>[for]</code> body, <code>@loop.*</code> describes the iteration: <code>loop.index</code> (1-based), <code>loop.index0</code> (0-based), <code>loop.first</code>, <code>loop.last</code>, and <code>loop.count</code>. Nested loops each get their own. A pre-existing variable of your own named <code>loop</code> is shadowed for the loop body and restored right after — but <code>loop</code> itself cannot be used <em>as</em> a loop variable name (<code>[for loop in …]</code> is an error: the metadata binding would make the value unreachable).</p>
 
-<pre><code class="language-ldt">[for v in @items][= @v][if not @loop.last], [/if][/for]     → a, b, c</code></pre>
+	<pre><code class="language-ldt">[for v in @items][= @v][if not @loop.last], [/if][/for]     → a, b, c</code></pre>
 
-<p>See <code>examples/loops.ldt</code>.</p>
-</section>
+	<p>A range's keys are 0-based <strong>positions</strong>, distinct from the 1-based <code>@loop.index</code>: <code>[for k, n in 5 to 7]</code> binds <code>k</code> to <code>0, 1, 2</code>. An <strong>undefined array</strong> iterates zero times silently, but an <strong>undefined range bound</strong> is a loud error — bounds must resolve to an integer, and a literal or <code>@ref</code> bound past <code>PHP_INT_MAX</code>/<code>PHP_INT_MIN</code> is rejected the same way. Ranges <strong>stream lazily</strong> — a huge range costs time, never memory (see §12).</p>
 
-<section id="expressions">
-<h2>Expressions</h2>
+	<p>See <code>examples/loops.ldt</code>.</p>
+	</section>
 
-<p><code>[= expr]</code> is the emit tag: it evaluates an expression and writes the result into the output. It works <strong>anywhere text is emitted</strong> (body output <em>and</em> <code>[set]</code> values), and inside it you're in expression context: references are bare <code>@name</code>, barewords are string literals, arithmetic is on.</p>
+	<section id="escaping">
+	<h2>8. Escaping literal delimiters</h2>
 
-<pre><code class="language-ldt">Subtotal: [= @price * @qty]
-[set total = [= @price * @qty + 5]]      capture a computed value
-[for n in 1 to 3][= @n * @n] [/for]       → 1 4 9</code></pre>
+	<p>A <code>\</code> before any <strong>non-alphanumeric</strong> character emits it literally, so any delimiter can be written verbatim. A <code>\</code> before a letter, digit, or end-of-line is itself literal, so ordinary prose and Windows paths (<code>C:\Users</code>) survive untouched — and <code>@</code> is never a delimiter, so it never needs escaping anywhere in text:</p>
 
-<ul>
-<li><strong>Integer arithmetic:</strong> <code>+  -  *  /  %</code> — <code>/</code> truncates toward zero; <code>* / %</code> bind tighter than <code>+ -</code>; <code>( )</code> groups; unary <code>-</code> negates. Operands must be integers (a non-integer, or <code>/ 0</code>, is an error).</li>
-<li>The <strong>comparison and boolean operators</strong> work too (<code>==</code>, <code>&lt;</code>, <code>and</code>, <code>not</code>, <code>defined</code>, …); a true/false result renders as <code>1</code> / <code>0</code> — handy for flags: <code>[set adult = [= @age >= 18]]</code>.</li>
-<li><strong><code>count @array</code></strong> gives an array's length (undefined → <code>0</code>, a scalar → error). It's an expression operator, so it works in <code>[= ]</code> <strong>and</strong> in <code>[if]</code> conditions:
-<pre><code class="language-ldt">You have [= count @items] item[if count @items != 1]s[/if].
-[if count @cart > 0]…[/if]</code></pre>
-</li>
-<li>A literal <code>[=</code> is written <code>\[=</code>.</li>
-</ul>
-
-<p>The one thing to know: inside <code>[= ]</code>, <code>-</code> is subtraction, so an unquoted bareword with a hyphen (<code>some-value</code>) must be quoted (<code>"some-value"</code>). Plain <code>[if]</code>/<code>[for]</code> conditions don't enable arithmetic, so hyphenated barewords keep working there unchanged. See <code>examples/expressions.ldt</code>.</p>
-</section>
-
-<section id="filters">
-<h2>Filters</h2>
-
-<p>A postfix pipe chain transforms a value on its way out. It lives in <code>[= ]</code>; args follow a <code>:</code>, separated by commas, and each arg is a <strong>full expression</strong>:</p>
-
-<pre><code class="language-ldt">[= @name | trim | upper]
-[= @items | join: ", "]
-[= @price | round: @precision]
-[= @text | truncate: @width - 2, "…"]
-[= count @cart * 10 | abs]</code></pre>
-
-<table>
-<thead><tr><th>Filter</th><th>Behavior</th></tr></thead>
-<tbody>
-<tr><td><code>upper</code> / <code>lower</code></td><td>change case</td></tr>
-<tr><td><code>trim</code></td><td>strip surrounding whitespace</td></tr>
-<tr><td><code>capitalize</code></td><td>uppercase the first character</td></tr>
-<tr><td><code>truncate: n [, suffix]</code></td><td>cut to <code>n</code> chars, append optional suffix</td></tr>
-<tr><td><code>join: sep</code></td><td>array → string (sep defaults to empty)</td></tr>
-<tr><td><code>first</code> / <code>last</code></td><td>first / last element of an array</td></tr>
-<tr><td><code>round [: n]</code></td><td>round to <code>n</code> decimals (default 0)</td></tr>
-<tr><td><code>abs</code></td><td>absolute value</td></tr>
-<tr><td><code>html</code></td><td>escape <code>&lt; &gt; &amp; " '</code> for HTML</td></tr>
-<tr><td><code>default: value</code></td><td>fallback when the input is falsy (same rule as <code>[if]</code>)</td></tr>
-</tbody>
-</table>
-
-<p>Notes:</p>
-<ul>
-<li>Filters apply to the <strong>finished value</strong> — compute first, then pipe.</li>
-<li>Arrays flow through the chain (into <code>join</code>/<code>first</code>/<code>last</code>), but the final result must be a scalar — an array at the end is an error ("add a join").</li>
-<li><code>default</code> also satisfies <code>--strict</code> for an undefined path.</li>
-<li>Filters are <strong>not</strong> available in <code>[if]</code>/<code>[for]</code> tag conditions — filter into a <code>[set]</code> first, or use <code>[= ]</code>.</li>
-<li>A <code>|</code> in plain text is literal, as always.</li>
-</ul>
-
-<p>See <code>examples/filters.ldt</code>.</p>
-</section>
-
-<section id="escaping">
-<h2>Escaping literal delimiters</h2>
-
-<p>A <code>\</code> before any <strong>non-alphanumeric</strong> character emits it literally, so any delimiter can be written verbatim:</p>
-
-<pre><code class="language-ldt">\[= @x]   → [= @x]     (a literal emit tag, not evaluated)
+	<pre><code class="language-ldt">\[= @x]   → [= @x]     (a literal emit tag, not evaluated)
 \[set …]  → [set …]    (a literal tag)
 \[/set]   \[   \]   \#]  → literal brackets and closers
 \\        → \</code></pre>
 
-<p>A <code>\</code> before a letter, digit, or end-of-line is itself literal, so ordinary text and Windows paths (<code>C:\Users</code>) are untouched — and <code>@</code> is never special in text, so it needs no escaping at all. In expressions (<code>[if]</code>, <code>[for]</code>, <code>[= ]</code>) there are no bare escapes — use a <code>"quoted"</code> string for special characters; <strong>inside</strong> such a string the same escape rule applies (<code>\"</code> for a quote, <code>\\</code> for a backslash), and strings may span lines. See <code>examples/limitations.ldt</code>.</p>
-</section>
+	<ul>
+	<li>An <em>unpaired</em> literal <code>[</code>/<code>]</code> in a self-closing <code>[set]</code> value needs escaping too, since that form's scan pairs brackets so constructs can nest inside it.</li>
+	<li>A <code>[# … #]</code> comment stops at the <strong>first</strong> literal <code>#]</code> — <strong>quotes do NOT protect a comment closer</strong> (quotes mean nothing in comments); escape it as <code>\#]</code> to keep the comment open past it. The <code>#</code> is not shared between opener and closer: <code>[#]</code> alone is an <em>unterminated</em> comment; <code>[##]</code> is the minimal valid one.</li>
+	<li>There is <strong>no bare <code>\</code> escape inside an expression</strong> — only inside a <code>"quoted string"</code> does the same escape rule apply (see §4).</li>
+	</ul>
 
-<section id="feeding-data-in">
-<h2>Feeding data in</h2>
+	<p>See <code>examples/escaping.ldt</code>.</p>
+	</section>
 
-<p>A template can be driven by an external data context, not just variables it defines inline. Scalars are stringified (<code>true</code>→<code>1</code>, <code>false</code>→<code>0</code>, <code>null</code>→empty), nested arrays are addressed by dot-path, and an inline <code>[set]</code> may override a seeded value.</p>
+	<section id="feeding-data-in">
+	<h2>9. Feeding data in</h2>
 
-<p>From PHP:</p>
+	<p>Two ways to drive a render from outside the template:</p>
 
-<pre><code class="language-php">echo Ldt::render('Hello [= @user.first]!', ['user' => ['first' => 'Ada']]);
-echo Ldt::renderFile('examples/data.ldt', ['cart' => [['item' => 'Pen', 'qty' => 2]]]);</code></pre>
+	<pre><code class="language-php">Ldt::render($source, $data = [], $strict = false, $file = null, $trim = true)
+Ldt::renderFile($path, $data = [], $strict = false, $trim = true)</code></pre>
 
-<p>From the CLI:</p>
-
-<pre><code class="language-bash">ldt --set user.first=Ada file.ldt        # dotted key → nested path
+	<pre><code class="language-bash">ldt --set user.first=Ada file.ldt        # dotted key → nested path
 ldt --json data.json file.ldt            # a whole JSON object as the context
 ldt --json data.json --set site=X f.ldt  # later flags win</code></pre>
 
-<p>See <code>examples/data.ldt</code> with <code>examples/data.json</code>.</p>
-</section>
+	<p><code>$data</code> is a plain PHP array — scalars are <strong>stringified</strong> (<code>true</code>→<code>"1"</code>, <code>false</code>→<code>"0"</code>, <code>null</code>→<code>""</code>), nested arrays stay nested and are addressed by dot-path, and an inline <code>[set]</code> can override anything seeded before the render.</p>
 
-<section id="strict-mode">
-<h2>Strict mode</h2>
+	<ul>
+	<li><strong>A seeded <code>null</code> is an empty <em>scalar</em>, not an absent key</strong> — it reads as <code>""</code> and is <code>defined</code>; descending into it with a template <code>[set]</code> is a path conflict. Omit the key entirely to let the template build the container instead.</li>
+	<li><code>--json</code> deep-merges <strong>maps</strong> key by key, but a JSON <strong>list</strong> replaces the previous value wholesale — no element-wise merge.</li>
+	<li><strong>A purely numeric-looking key collides with an integer array position</strong>, the same rule as dot-paths (§2): a JSON object key <code>"1"</code> and a JSON list's second element (index <code>1</code>) address the very same slot if merged onto the same path.</li>
+	<li>Seeded values must be scalars, <code>null</code>, or arrays — anything else (an object, a resource) is a loud error at seed time. <strong>Non-finite floats</strong> (<code>INF</code>/<code>NAN</code>) are rejected too, since they'd stringify to words, not Numbers.</li>
+	</ul>
 
-<p><code>--strict</code> (CLI) / <code>strict: true</code> (PHP) turns an undefined <code>[= @path]</code> into an error instead of empty. A <code>default:</code> filter satisfies it; any other filter chain on an undefined path still errors. Refs inside a <em>computed</em> expression resolve to empty rather than erroring (and then fail arithmetic if misused).</p>
-</section>
+	<p>See <code>examples/feeding-data-in.ldt</code> with <code>examples/data.json</code>.</p>
+	</section>
 
-<section id="run-it">
-<h2>Run it</h2>
+	<section id="strict-mode">
+	<h2>10. Strict mode</h2>
 
-<pre><code class="language-bash">php bin/ldt examples/assignments.ldt      # render a file
+	<p><code>--strict</code> (CLI) / <code>$strict = true</code> (PHP) makes an undefined <strong>plain-reference</strong> <code>[= @path]</code> — filtered or not — an error instead of empty, unless its chain has a <code>default:</code>. That is the <em>only</em> thing it guards:</p>
+
+	<pre><code class="language-bash">--strict  [= @missing]           →  error: undefined reference
+--strict  [= (@missing)]         →  error too — parens parse away, still a plain ref
+--strict  [if @missing]…         →  takes the false branch (no error — existence test)
+--strict  [for v in @missing]    →  zero iterations (no error — existence test)
+--strict  [= @missing == ""]     →  renders 1 — unguarded inside a computed expression
+--strict  [= @missing | default: "x"]   →  renders "x" — default: satisfies it</code></pre>
+
+	<p><code>[if]</code>/<code>[for]</code> are the existence tests and stay silent by design — changing that would break the idiom. Filter <strong>arguments</strong> are never strict-guarded either, <code>default:</code> included. Arithmetic on an unguarded <code>''</code> still fails, but that's a type error in <strong>any</strong> mode, not something <code>--strict</code> specifically causes.</p>
+	</section>
+
+	<section id="whitespace-trimming">
+	<h2>11. Whitespace trimming</h2>
+
+	<p>A line whose <strong>only</strong> content is directives/comments (no real text, no <code>[= ]</code> output) is <strong>standalone</strong>: it's removed along with its trailing newline, so a tag on its own line leaves no blank line behind. A line that also has real text, or an <code>[= ]</code> emit, is left untouched — an emit line is <strong>never</strong> trimmed even if it looks bare. Pass <code>--no-trim</code> to disable this globally.</p>
+
+	<ul>
+	<li><strong>Escaped whitespace does not protect a line</strong> — by the time the trimmer decides, <code>\ </code> is already plain whitespace text, so a directive line padded only with escaped spaces still trims away, same as if the spaces were unescaped. To keep a line, give it visible text or an <code>[= ]</code>.</li>
+	<li><strong>Only <code>\n</code> ends a line</strong> for the trimmer. CRLF files work naturally (the <code>\r</code> trims away with its line), but a CR-only file (classic Mac endings) is one long line — nothing trims, and the <code>\r</code>s render through as ordinary text.</li>
+	</ul>
+
+	<p>See <code>examples/whitespace-trimming.ldt</code> (run it once plain, once with <code>--no-trim</code>, and diff the two).</p>
+	</section>
+
+	<section id="resource-limits">
+	<h2>12. Resource limits</h2>
+
+	<p>Templates are trusted input, the host app's own files — not sandboxed against an adversarial author. There is deliberately <strong>no enforced depth or iteration cap</strong>: moderate nesting and moderate loops cost exactly what the equivalent native PHP would cost.</p>
+
+	<ul>
+	<li>Ranges <strong>stream lazily</strong> — a huge range (<code>1 to 100000000000</code>) costs time, never memory, since the sequence is never materialized as an array.</li>
+	<li>Range bounds must still fit a platform int — an out-of-range bound is a loud error, never silent overflow.</li>
+	<li>~100,000 levels of nested <code>[if]</code> has been verified to work (20,000+ deep is comfortably fine), but going deep enough eventually hits PHP's own memory/call-stack limit as a raw fatal error, not a clean <code>SyntaxError</code> — a deliberate trade-off; an arbitrary depth cap would solve a problem nobody has, but it's worth knowing before generating templates programmatically.</li>
+	</ul>
+
+	<p>See <code>examples/resource-limits.ldt</code>.</p>
+	</section>
+
+	<section id="not-possible">
+	<h2>13. What is not possible</h2>
+
+	<p>Every limitation fails <strong>loudly</strong> with a located error — never by silently producing wrong output. Some things are also simply not in the language <em>by design</em> — decisions recorded in <a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">TASKS.md</a>, made to keep the language small — with an idiom that already covers the realistic need:</p>
+
+	<table>
+	<thead><tr><th>Not in the language</th><th>Use instead</th></tr></thead>
+	<tbody>
+	<tr><td><code>switch</code> / <code>case</code></td><td><code>[if]</code> / <code>[elseif]</code> / <code>[else]</code></td></tr>
+	<tr><td>ternary <code>?:</code></td><td>inline <code>[if]…[else]…[/if]</code>, or <code>| default:</code> for a falsy-value shorthand</td></tr>
+	<tr><td>regex matching</td><td><code>contains</code> / <code>starts with</code> / <code>ends with</code> (real validation belongs in the host app)</td></tr>
+	<tr><td>boolean / null literals (<code>true</code>/<code>false</code>/<code>null</code> keywords)</td><td>a comparison result textualizes as <code>1</code>/<code>0</code>; undefined already <em>is</em> the null</td></tr>
+	<tr><td>custom / host-registered filters</td><td>the fixed built-in set (§5); pre/post-process in the host app</td></tr>
+	<tr><td><code>[include]</code> / <code>[macro]</code> (template composition)</td><td>render sub-pieces separately in PHP and pass the strings in as data</td></tr>
+	<tr><td>float arithmetic in <code>[= ]</code></td><td>keep math integer; the <code>round</code> filter formats decimals</td></tr>
+	<tr><td>bare <code>@name</code> interpolating in body text</td><td><code>[= @name]</code> — otherwise every email/@-mention would mangle</td></tr>
+	<tr><td>filters in <code>[if]</code>/<code>[for]</code> conditions</td><td>filter into a <code>[set]</code> first, or use <code>[= ]</code></td></tr>
+	<tr><td>rendering an array directly as text</td><td><code>| join: ", "</code>, or iterate</td></tr>
+	</tbody>
+	</table>
+
+	<p>See <code>examples/not-possible.ldt</code>.</p>
+	</section>
+
+	<section id="run-it">
+	<h2>Run it</h2>
+
+	<pre><code class="language-bash">php bin/ldt examples/assignment.ldt      # render a file
 php bin/ldt --strict file.ldt            # error on undefined references
+php bin/ldt --no-trim file.ldt           # keep standalone-line blank lines
 php bin/ldt --tokens file.ldt            # dump the token stream
 php bin/ldt -                            # render stdin
 php tests/run.php                        # run the test suite</code></pre>
 
-<p>Or from PHP:</p>
+	<p>Or from PHP:</p>
 
-<pre><code class="language-php">require 'autoload.php';
+	<pre><code class="language-php">require 'autoload.php';
 use Ldtlang\Ldt;
 
 echo Ldt::render('Hello [set who = world][= @who]!');
-echo Ldt::renderFile('examples/assignments.ldt');</code></pre>
-</section>
+echo Ldt::renderFile('examples/assignment.ldt');</code></pre>
+	</section>
 
-<section id="editor-support">
-<h2>Editor support</h2>
+	<section id="editor-support">
+	<h2>Editor support</h2>
 
-<p>A TextMate bundle for PhpStorm lives in <code>editor/phpstorm/</code> — see its README.</p>
-</section>
+	<p>A TextMate bundle for PhpStorm lives in <code>editor/phpstorm/</code> — see its README.</p>
+	</section>
 
-<section id="not-possible">
-<h2>What is <em>not</em> possible</h2>
+	<section id="status">
+	<h2>Status</h2>
 
-<p>Every limitation fails <strong>loudly</strong> with a located error — never by silently producing wrong output. The complete list:</p>
+	<p>Assignment, the <code>[= expr]</code> emit tag (plain-reference interpolation, integer arithmetic + comparison/logic, <code>| default:</code> fallbacks and the full filter set), nested dot-paths, comments, conditionals, loops (arrays + <code>to</code>/<code>by</code> ranges, <code>break</code>/<code>continue</code>, nested iteration, <code>@loop.*</code> metadata), an external data context (PHP array / CLI <code>--set</code> / <code>--json</code>), whitespace trimming, and <code>\</code> escaping are implemented.</p>
 
-<table>
-<thead><tr><th>Not possible</th><th>Why</th><th>Instead</th></tr></thead>
-<tbody>
-<tr><td>bare <code>@name</code> interpolating in body text</td><td>would mangle every email/@-mention</td><td><code>[= @name]</code></td></tr>
-<tr><td>filters in <code>[if]</code>/<code>[for]</code> conditions</td><td>keeps conditions simple</td><td>filter into a <code>[set]</code>, or use <code>[= ]</code></td></tr>
-<tr><td>float arithmetic (<code>[= 1.5 + 1]</code>)</td><td>integer-only by design (no float-formatting swamp)</td><td>keep math integer; <code>round</code> formats decimals</td></tr>
-<tr><td>nested <code>[= [= ] ]</code></td><td>one expression level</td><td>plain <code>( )</code> grouping</td></tr>
-<tr><td><code>[= ]</code> as a range bound</td><td>bounds are literals or refs</td><td><code>[set hi = [= …]]</code> first</td></tr>
-<tr><td>unquoted <code>|</code> <code>:</code> <code>,</code> or hyphens-in-<code>[= ]</code> inside barewords</td><td>they are expression tokens</td><td>quote: <code>"10:30"</code>, <code>"super-admin"</code></td></tr>
-<tr><td>a raw <code>]</code>/<code>[/set]</code>/<code>#]</code> inside an unquoted value or comment</td><td>delimiter-based scanning</td><td>quote the value (<code>"a ] b"</code>) or escape: <code>\]</code>, <code>\[/set]</code>, <code>\#]</code></td></tr>
-<tr><td>an unpaired literal <code>[</code> in a self-closing value</td><td>the scan pairs <code>[ ]</code> so constructs nest</td><td>escape it: <code>\[</code></td></tr>
-<tr><td>a value starting with a bare <code>"</code> that isn't properly quoted</td><td>strict quoting — fail loud, never mangle</td><td>quote the whole value, or escape: <code>\"</code></td></tr>
-<tr><td>rendering an array directly</td><td>arrays aren't text</td><td><code>| join: ", "</code></td></tr>
-<tr><td>nested comments</td><td>first <code>#]</code> closes</td><td><code>\#]</code> for a literal closer</td></tr>
-<tr><td>bare <code>\</code> escapes in expressions (outside strings)</td><td>quoting covers it</td><td><code>"quoted strings"</code> — with <code>\"</code>/<code>\\</code> inside</td></tr>
-<tr><td>case-insensitive substring tests</td><td>byte-wise like <code>==</code></td><td><code>[set e = [= @x | lower]]</code> then test</td></tr>
-</tbody>
-</table>
-</section>
+	<p>Planned work and deliberately-excluded features are tracked in <a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">TASKS.md</a>; the full design/decision log, including every rejected alternative, is in <a href="https://github.com/syncroze/ldt-lang/blob/master/HISTORY.md">HISTORY.md</a>.</p>
+	</section>
 
-<section id="excluded-features">
-<h2>Deliberately excluded features</h2>
+	<footer>
+		<p>Source, tests, and the full file listing live in the <a href="https://github.com/syncroze/ldt-lang">repository</a>.</p>
+	</footer>
 
-<p>Not oversights — decisions, recorded in <a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">TASKS.md</a>, made to keep the language small:</p>
-
-<table>
-<thead><tr><th>Feature</th><th>Why it's out</th><th>What covers the need</th></tr></thead>
-<tbody>
-<tr><td>includes / partials</td><td>file resolution + recursion complexity</td><td>compose in the host app</td></tr>
-<tr><td>macros / functions</td><td>the line where a template becomes a program</td><td>loops + sets</td></tr>
-<tr><td>switch / case</td><td>redundant surface</td><td><code>[if]</code>/<code>[elseif]</code> chains</td></tr>
-<tr><td>custom / host-registered filters</td><td>API-surface growth</td><td>the built-in twelve</td></tr>
-<tr><td>boolean / null literals</td><td>two-type model already covers them; <code>true</code> would break bareword compares</td><td>flags are <code>1</code>/<code>0</code>; undefined is the null</td></tr>
-<tr><td>regex matching</td><td>a second syntax + escaping clash</td><td><code>contains</code> / <code>starts with</code> / <code>ends with</code></td></tr>
-<tr><td>ternary <code>?:</code></td><td>two mechanisms already exist</td><td>inline <code>[if]…[else]…[/if]</code> and <code>default:</code></td></tr>
-</tbody>
-</table>
-</section>
-
-<section id="status">
-<h2>Status</h2>
-
-<p>Assignment, the <code>[= expr]</code> emit tag (plain-reference interpolation, integer arithmetic + comparison/logic, <code>| default:</code> fallbacks and the full filter set), nested dot-paths, comments, conditionals, loops (arrays + <code>to</code>/<code>by</code> ranges, <code>break</code>/<code>continue</code>, nested iteration, <code>@loop.*</code> metadata), an external data context (PHP array / CLI <code>--set</code> / <code>--json</code>), whitespace trimming, and <code>\</code> escaping are implemented.</p>
-
-<p>Planned work and deliberately-excluded features are tracked in <a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">TASKS.md</a>.</p>
-</section>
-
-<section id="caveats">
-<h2>Caveats &amp; edge cases</h2>
-
-<p>The complete list of edge cases and "gotchas" to be aware of. Most are inherent to a delimiter-based embeddable language; each has a clear workaround. For a runnable escaping demo see <code>examples/limitations.ldt</code>.</p>
-
-<h3 id="caveat-1">1. <code>@</code> reads; writes are bare; text is literal</h3>
-
-<p>One rule covers every position:</p>
-
-<table>
-<thead><tr><th>Position</th><th>Form</th><th>A bare <code>@</code> is…</th></tr></thead>
-<tbody>
-<tr><td>Body text and <code>[set]</code> values</td><td>emit with <code>[= @path]</code></td><td><strong>literal</strong> (so <code>me@site.com</code> and <code>(@ada)</code> are left intact)</td></tr>
-<tr><td>Expressions — <code>[if]</code>, <code>[for … in]</code>, <code>[= ]</code></td><td>bare <code>@path</code></td><td>the reference</td></tr>
-<tr><td>Write targets — <code>[set]</code>, <code>[unset]</code>, <code>[for k, v]</code></td><td>bare name, no <code>@</code></td><td>—</td></tr>
-</tbody>
-</table>
-
-<ul>
-<li><strong>A bare <code>@name</code> in body text does <em>not</em> interpolate</strong> — it prints literally. Use <code>[= @name]</code> to emit in text.
-<pre><code class="language-ldt">value @a here      →  value @a here      (literal)
-value [= @a] here  →  value X here       (emitted)</code></pre>
-</li>
-<li><strong>A write target never takes <code>@</code></strong> — <code>[set @name = x]</code> is an error ("expected a variable path after [set"). The name is where the value goes, not a value being read.</li>
-</ul>
-
-<h3 id="caveat-2">2. Writing a delimiter literally needs <code>\</code></h3>
-
-<p>Every construct's opener/closer is meaningful, so to print one literally, escape it. The rule: <strong><code>\</code> before a non-alphanumeric character emits that character literally</strong>; before a letter, digit, or end-of-line the <code>\</code> is itself literal (so <code>C:\Users</code> and ordinary prose backslashes survive). <code>@</code> is not a delimiter — it never needs escaping in text.</p>
-
-<table>
-<thead><tr><th>To print</th><th>Write</th></tr></thead>
-<tbody>
-<tr><td><code>[=</code> (an emit tag)</td><td><code>\[=</code></td></tr>
-<tr><td>a tag like <code>[set …]</code>, <code>[if …]</code>, <code>[# …</code></td><td><code>\[set …]</code>, <code>\[if …]</code>, <code>\[#</code></td></tr>
-<tr><td>a <code>]</code> or unpaired <code>[</code> in an unquoted <code>=</code> value, or <code>[/set]</code> in a block value</td><td><code>\]</code>, <code>\[</code>, <code>\[/set]</code></td></tr>
-<tr><td>a comment closer <code>#]</code> (inside a comment)</td><td><code>\#]</code></td></tr>
-<tr><td>a literal backslash</td><td><code>\\</code></td></tr>
-</tbody>
-</table>
-
-<h3 id="caveat-3">3. Escapes in expressions live <em>inside</em> quoted strings</h3>
-
-<p>Bare <code>\</code> escapes don't exist in <code>[if]</code>, <code>[for]</code>, or <code>[= ]</code> — but <strong>inside a <code>"..."</code> string literal the universal escape rule applies</strong> (<code>\</code> before a non-alphanumeric char yields it; before a letter, digit or end-of-line it stays literal), and strings may span newlines:</p>
-
-<pre><code class="language-ldt">[if @x == "a]b"]…             quotes hold the special character
-[if @x == "say \"hi\""]…      an escaped quote inside the string
-[if @p == "C:\Users"]…        backslash before a letter is literal</code></pre>
-
-<h3 id="caveat-4">4. A value/comment can't contain its own closer unescaped</h3>
-
-<ul>
-<li>A block <code>[set x]…[/set]</code> value stops at the <strong>first</strong> literal <code>[/set]</code> — unless the body is a quoted whole value, which protects it: <code>[set x]"a [/set] b"[/set]</code> needs no escape.</li>
-<li>A self-closing <code>[set x = …]</code> value is scanned <strong>bracket-aware</strong>: nested <code>[…]</code> constructs pass through whole, and the value ends at the first <code>]</code> at depth 0. Consequence: an <em>unpaired</em> literal <code>[</code> or <code>]</code> must be escaped (<code>\[</code> / <code>\]</code>) or the value quoted (<code>[set x = "a ] b"]</code>). Only a <em>whole-value</em> quote protects — quotes in the middle of a value are ordinary characters, so <code>[set a = say "[" here]</code> is an unterminated-value error (write <code>\[</code>).</li>
-<li>A <code>[# … #]</code> comment stops at the <strong>first</strong> literal <code>#]</code>. <strong>Quoting does not protect it</strong> (quotes mean nothing in comments) — escape it as <code>\#]</code>.</li>
-<li>The <code>#</code> cannot be shared between opener and closer: <code>[#]</code> is an <em>unterminated</em> comment. The minimal comment is <code>[##]</code>.</li>
-</ul>
-
-<p>Escape the closer to include it literally (see §2).</p>
-
-<h3 id="caveat-4b">4b. Quoted <code>[set]</code> values — the strict rule</h3>
-
-<ul>
-<li>Set values are <strong>trimmed at the ends</strong> (both forms). To keep edge spaces, quote the whole value: <code>[set pad = "   x   "]</code> stores <code>   x   </code>.</li>
-<li>A value <strong>starting with an unescaped <code>"</code></strong> must be a <em>properly quoted whole value</em>: the closing <code>"</code> is the last character and interior quotes are escaped (<code>\"</code>). Otherwise it is an error:
-<pre><code class="language-ldt">[set a = "yes" or "no"]     → error — write "yes\" or \"no"
-[set q]"[/set]               → error — a lone quote is \"</code></pre>
-</li>
-<li>To store literal surrounding quotes, escape the opening one: <code>\"...\"</code>.</li>
-<li>Quotes elsewhere in a value stay literal: <code>[set s = say "hi" now]</code> is fine.</li>
-</ul>
-
-<h3 id="caveat-4c">4c. <code>[unset]</code> removes; it never empties</h3>
-
-<ul>
-<li><code>[unset path]</code> (or <code>[unset a, b.c]</code>) makes the path <strong>undefined</strong> — not an empty value: <code>defined</code> → 0, strict mode errors, fallbacks catch it.</li>
-<li>Idempotent: unsetting a missing path (or one passing through a scalar) is a silent no-op.</li>
-<li>Removing an array <strong>index</strong> leaves a hole — no reindexing. <code>count</code> drops, the remaining keys keep their positions, and the next append continues past the old maximum (<code>0,1,2</code> → unset <code>1</code> → append lands on <code>3</code>). Negative indexes are valid keys (<code>[set a.-1 = v]</code>); an append past a lone negative key starts at <code>0</code> (PHP's max-int-key-plus-one rule).</li>
-<li>Removing the <strong>last</strong> key leaves a defined-but-empty array: <code>defined</code> → 1, but <code>[if @a]</code> is false and <code>count @a</code> is 0 (empty-array falsy rule).</li>
-<li><strong>Assigning a scalar over a map replaces it wholesale</strong> — <code>[set a.b = 1][set a = x]</code> silently drops the whole subtree (<code>a.b</code> becomes undefined). Only the other direction is loud: <em>descending into</em> a scalar (<code>[set a = x][set a.b = 1]</code>) is a <code>cannot descend into scalar</code> error.</li>
-<li>Reset-a-container idiom: <code>[unset g][set g.k = v]</code> (a plain <code>[set g = ]</code> would make <code>g</code> a scalar and later <code>g.k</code> sets would error).</li>
-</ul>
-
-<h3 id="caveat-4d">4d. Values are mini-templates — the boundaries</h3>
-
-<ul>
-<li>A <code>[set]</code> value renders exactly like body text, with two boundaries: a <code>[break]</code>/<code>[continue]</code> inside a value binds only to a <code>[for]</code> <em>inside the same value</em> — it cannot break a loop outside it; and a nested <em>block</em> set errors loudly (self-closing sets nest fine).</li>
-<li>Errors inside values report <strong>exact template coordinates</strong> (the value's re-lex is seated at its real position).</li>
-<li>Whitespace inside any tag <em>header</em> includes newlines — long <code>[for]</code>/<code>[set]</code>/<code>[unset]</code> headers may wrap across lines. Value regions are unaffected.</li>
-<li>The argument-less markers (<code>[else]</code>, <code>[/if]</code>, <code>[/for]</code>, <code>[break]</code>, <code>[continue]</code>) accept whitespace before their <code>]</code> too — <code>[else ]</code> is the tag, <code>[else x]</code> stays literal. The value/comment closers <code>[/set]</code> and <code>#]</code> remain exact sentinels: no interior whitespace.</li>
-</ul>
-
-<h3 id="caveat-5">5. Arithmetic in <code>[= ]</code> is integer-only</h3>
-
-<ul>
-<li>Only <strong>integers</strong> are accepted. A non-integer operand — including a float <em>literal</em> like <code>5.0</code> — is an error:
-<pre><code class="language-ldt">[= 5.0 + 1]        →  error: "arithmetic requires integer operands, got '5.0'"</code></pre>
-</li>
-<li><code>/</code> is <strong>integer division</strong> (truncates toward zero): <code>[= 10 / 3]</code> → <code>3</code>.</li>
-<li>Division or modulo by zero is an error: <code>[= 5 / 0]</code>, <code>[= 5 % 0]</code>.</li>
-<li>Float math is not supported (yet). Compose results into variables and keep everything integer.</li>
-</ul>
-
-<h3 id="caveat-5b">5b. <code>count @array</code> is array-length only</h3>
-
-<ul>
-<li><code>count @path</code> returns the number of elements: <strong>undefined → <code>0</code></strong>, a scalar → <strong>error</strong> (<code>"cannot count @x: not an array"</code>), same spirit as <code>[for]</code> over a non-array. It is not string length.</li>
-<li><code>count</code> and <code>defined</code> are <strong>context-sensitive</strong>, not reserved (like the substring operators): they act as operators only when followed by a <code>@reference</code>, so <code>[if @x == count]</code> compares against the literal word.</li>
-</ul>
-
-<h3 id="caveat-5c">5c. Filters</h3>
-
-<ul>
-<li><strong>Filters work only in <code>[= ]</code></strong> — in an <code>[if]</code>/<code>[for]</code> tag condition a <code>|</code> is an error ("filters are not supported in a tag condition"). Filter into a <code>[set]</code> first, or use <code>[= ]</code>.</li>
-<li><strong><code>|</code>, <code>:</code> and <code>,</code> are expression tokens.</strong> An unquoted bareword cannot contain them — quote such literals (<code>[if @t == "10:30"]</code>, <code>join: ", "</code>).</li>
-<li><strong>Filter args are full expressions</strong>, so inside them <code>-</code> is subtraction and barewords with hyphens/commas must be quoted (same rule as the rest of <code>[= ]</code>).</li>
-<li><strong>A plain <code>@ref</code> argument reads the raw value</strong> (like the chain input), so an array can be a <code>default:</code> fallback: <code>[= @list | default: @fallbackList | join: ", "]</code>. Scalar-expecting arguments (<code>truncate</code> / <code>round</code> / <code>join</code>) reject an array argument loudly.</li>
-<li><strong><code>default:</code> evaluates its argument lazily</strong> — only when the fallback actually fires. An error inside an unused fallback (say, a division by zero) never surfaces; every other filter needs its arguments and evaluates them eagerly.</li>
-<li><strong>The final chain result must be a scalar.</strong> Arrays may flow <em>through</em> the chain (to <code>join</code>/<code>first</code>/<code>last</code>), but an array at the end is an error.</li>
-<li><strong><code>default</code> vs <code>--strict</code>:</strong> a <code>default</code> filter satisfies strict mode for an undefined path; any other chain on an undefined path still errors under <code>--strict</code>.</li>
-<li><strong>Filter arity is enforced</strong> — extra or missing arguments are errors (<code>filter 'upper' takes no arguments</code>).</li>
-<li>Filter names are only reserved <strong>after a <code>|</code></strong> — no new global reserved words.</li>
-<li><strong>Case filters are ASCII-only</strong>: <code>upper</code> / <code>lower</code> / <code>capitalize</code> transform <code>a–z</code> / <code>A–Z</code> only; every other byte passes through (<code>é</code> stays <code>é</code>) — the same dependency-free byte policy as the substring operators.</li>
-<li><strong><code>truncate</code> counts bytes but never splits a UTF-8 character</strong>: when the cut lands inside a multi-byte sequence, the incomplete tail is dropped before the suffix is added (a complete character at the edge is kept). Assumes UTF-8 text — a stray Latin-1 high byte at the cut is dropped too.</li>
-<li><strong><code>round</code> / <code>abs</code> are float-based</strong>: beyond ~15 significant digits PHP float precision applies, and a huge result renders in scientific notation (<code>1.23…E+29</code>) — which is then <em>not</em> a Number by the text rule, so later arithmetic on it errors. Keep filter math at ordinary magnitudes; <code>[= ]</code> integer arithmetic is exact within the platform integer range.</li>
-</ul>
-
-<h3 id="caveat-5d">5d. Substring operators</h3>
-
-<ul>
-<li><code>contains</code> / <code>starts with</code> / <code>ends with</code> are <strong>case-sensitive</strong> and byte-wise (like string <code>==</code>). For a case-insensitive test, lowercase first: <code>[set e = [= @email | lower]][if @e contains …]</code>.</li>
-<li>They are <strong>context-sensitive</strong>, not reserved: only recognized in operator position, so <code>[if @x == contains]</code> still compares against the literal word.</li>
-<li>An <strong>empty needle is always found</strong> (<code>@x contains ""</code> is true), matching PHP.</li>
-<li><code>starts</code> / <code>ends</code> <strong>require</strong> the <code>with</code> (<code>starts "x"</code> is an error).</li>
-</ul>
-
-<h3 id="caveat-6">6. Inside <code>[= ]</code>, <code>-</code> is subtraction</h3>
-
-<p>Because arithmetic is on inside <code>[= ]</code>, a hyphen is the subtract operator, so an unquoted bareword with a hyphen is parsed as arithmetic and fails. Quote it:</p>
-
-<pre><code class="language-ldt">[= @role == super-admin]      →  error (parsed as super − admin)
-[= @role == "super-admin"]    →  ok</code></pre>
-
-<p>The same trade-off hits a <strong>negative array index</strong>: <code>@a.-1</code> works in <code>[if]</code>/<code>[for]</code> conditions (no arithmetic there), but inside <code>[= ]</code> the <code>-</code> reads as subtraction, so <code>[= @a.-1]</code> is an error. To emit such a slot, reach it by iteration (<code>[for k, v in @a][if @k == -1][= @v][/if][/for]</code>) — or avoid negative keys in data you need to print directly.</p>
-
-<p>(Plain <code>[if]</code>/<code>[for]</code> conditions do <strong>not</strong> enable arithmetic, so hyphenated barewords like <code>[if @x == some-value]</code> keep working there unchanged.)</p>
-
-<h3 id="caveat-7">7. <code>[= ]</code> cannot be nested in itself, and cannot be a range bound</h3>
-
-<ul>
-<li><strong>No <code>[= ]</code> inside <code>[= ]</code></strong> — the inside is already expression context; use plain grouping <code>( )</code>:
-<pre><code class="language-ldt">[= [= 1 + 1] + 1]   →  error
-[= (1 + 1) + 1]     →  ok</code></pre>
-(Nesting <code>[= ]</code> inside a <code>[set … = …]</code> <em>value</em> is fine — a value is text, not an expression.)</li>
-<li><strong>A range bound cannot be an <code>[= ]</code> expression</strong> — bounds are integer literals or bare <code>@refs</code>. Compute first, then use the variable:
-<pre><code class="language-ldt">[for n in 1 to [= @x + 1]]…            →  error
-[set hi = [= @x + 1]][for n in 1 to @hi]…   →  ok</code></pre>
-</li>
-</ul>
-
-<h3 id="caveat-8">8. <code>--strict</code> guards only plain-reference emits</h3>
-
-<p><code>--strict</code> makes an undefined <code>[= @path]</code> (a plain reference, filtered or not) an error — unless its chain has a <code>default:</code>. Everywhere else undefined is a <strong>value</strong>, not an error — conditions and loops are the existence tests, so they stay silent by design:</p>
-
-<pre><code class="language-bash">--strict  x[= @missing]y         →  error: undefined reference
---strict  [if @missing]…         →  takes the false branch (no error)
---strict  [for v in @missing]    →  zero iterations (no error)
---strict  x[= @missing == ""]y   →  x1y — refs inside a computed expression
-                                    read as '' with no guard (arithmetic on
-                                    such a ref still fails, in any mode:
-                                    "…got ''")</code></pre>
-
-<p>A <em>defined</em> value never errors under strict either — including an array rendered directly: <code>[= @arr]</code> gives <code>''</code> (arrays are not renderable; add a <code>join</code> or iterate).</p>
-
-<p>Filter <strong>arguments</strong> are expressions, so they are never strict-guarded — including a <code>default:</code> fallback: <code>[= @missing | default: @alsoMissing]</code> renders empty under <code>--strict</code>, with no error (the chain has a <code>default:</code>, and the undefined fallback reads as <code>''</code>).</p>
-
-<p>The guard follows the plain-reference emit wherever it appears — an undefined <code>[= @path]</code> inside a <code>[set]</code> value errors too, at its exact template coordinates.</p>
-
-<h3 id="caveat-9">9. Data types: a value is String or Number by its text</h3>
-
-<p>A value is treated as a <strong>Number</strong> when its text matches <code>[+-]?\d+(\.\d+)?</code>, otherwise a <strong>String</strong>. The classification is used for comparison and truthiness; the original text is always preserved on output (<code>+5</code> renders as <code>+5</code>, compares as <code>5</code>).</p>
-
-<ul>
-<li><code>007</code> <strong>renders</strong> as <code>007</code> but <strong>compares</strong> as <code>7</code>:
-<pre><code class="language-ldt">[set id = 007][= @id] but [= @id == 7]     →  007 but 1</code></pre>
-</li>
-<li>Comparison is type-aware: both operands numeric → numeric (<code>5 == 5.0</code>), otherwise lexicographic (<code>apple &lt; banana</code>).</li>
-<li><strong>Falsy</strong> = empty string, undefined, and numeric zero (<code>0</code>, <code>0.0</code>, <code>-0</code>, <code>+0</code>). Everything else is truthy — including a non-numeric <code>"0x"</code>.</li>
-<li><strong>Booleans textualize as <code>1</code> / <code>0</code></strong> — a comparison result stored or emitted is a Number (<code>[set f = [= 1 &gt; 2]][= @f]</code> → <code>0</code>), so <code>[= (…) == 0]</code> works.</li>
-</ul>
-
-<h3 id="caveat-9b">9b. One falsy rule: <code>[if]</code> and <code>default:</code> agree</h3>
-
-<ul>
-<li>The fallback (<code>| default: "F"</code>) triggers exactly when <code>[if @x]</code> would be false: undefined, empty string, numeric zero, or an empty array. Its argument is a full expression (<code>| default: @fb</code>), and chained defaults cascade through falsy values.</li>
-<li>Consequence: <strong>a genuine <code>0</code> cannot survive an attached fallback</strong> — <code>[set n = 0][= @n | default: "-"]</code> renders <code>-</code>. To display a zero, don't attach a fallback (or guard with <code>[if defined @n]</code>).</li>
-<li><code>007</code> (numeric 7) and <code>"0x"</code> (non-numeric) are truthy and pass through.</li>
-<li>A bare reference to a <strong>non-empty array</strong> is truthy in <code>[if]</code> / <code>not</code> / <code>and</code> / <code>or</code> (an empty array is falsy) — the same rule <code>default:</code> applies, so the two always agree here too. In a <strong>comparison</strong> (or as text) an array still reads as <code>''</code>; test presence with <code>[if @items]</code>, size with <code>count @items</code>.</li>
-<li>Strict mode still errors only on <strong>undefined</strong> without a fallback; a defined-but-falsy value never errors.</li>
-</ul>
-
-<h3 id="caveat-10">10. Loops</h3>
-
-<ul>
-<li><strong>A bare integer is not iterable</strong> — a range needs <code>to</code>: <code>[for n in 5]</code> errors; <code>[for n in 1 to 5]</code> is the range.</li>
-<li><strong>Iterating records:</strong> when a loop value is itself a sub-array, <code>[= @v]</code> renders empty (an array isn't directly renderable) but <code>[= @v.field]</code> resolves.</li>
-<li><strong>Loop variables are block-scoped</strong> — they don't leak, and any prior binding of the same name is restored after the loop.</li>
-<li><strong><code>[break]</code> / <code>[continue]</code> bind to the nearest enclosing loop</strong>, even when nested inside <code>[if]</code>s.</li>
-<li><strong><code>loop</code> is bound inside every <code>[for]</code> body</strong> (for <code>[= @loop.index]</code> etc.). A variable of your own named <code>loop</code> is shadowed inside the loop and restored after it — same block-scoping as the loop variables.</li>
-<li><strong><code>loop</code> cannot be a loop <em>variable</em> name</strong> — <code>[for loop in …]</code> (or <code>[for k, loop in …]</code>) is an error: the metadata binding would make the value unreachable. Pick another name; only a pre-existing variable named <code>loop</code> is silently shadowed (previous bullet).</li>
-<li><strong>A range's keys are 0-based positions</strong> — <code>[for k, n in 5 to 7]</code> binds <code>k</code> to <code>0, 1, 2</code> (a range behaves like a list), while <code>@loop.index</code> stays 1-based. With an array, <code>k</code> is the array's own key.</li>
-<li><strong>An undefined range <em>bound</em> is an error</strong> — unlike <code>[for v in @missing]</code> (zero iterations, see §8), <code>[for n in 1 to @missing]</code> fails loudly: bounds must be integers, and "no integer" is not a usable bound.</li>
-<li><strong>Range bounds must fit the platform integer</strong> — a literal or <code>@ref</code> bound beyond <code>PHP_INT_MAX</code>/<code>PHP_INT_MIN</code> is a loud error (PHP would otherwise silently saturate it). Ranges ending exactly <em>at</em> the limits work.</li>
-<li><strong>Ranges stream lazily</strong> — <code>[for n in 1 to 1000000000]</code> costs time, never memory: values are produced one at a time and <code>loop.count</code> is computed arithmetically. (Only the loop's own <em>output</em> occupies memory.)</li>
-</ul>
-
-<h3 id="caveat-11">11. Whitespace trimming</h3>
-
-<p>A line whose only content is directives/comments (no text, no <code>[= ]</code> output) is <strong>standalone</strong>: it's removed along with its trailing newline, so a tag on its own line leaves no blank line. A line that also has real text or an emit is left untouched. Pass <code>--no-trim</code> to disable this.</p>
-
-<ul>
-<li><strong>Escaped whitespace does not protect a line</strong> — by the time the trimmer decides, <code>\ </code> (escaped space) is plain whitespace text, so a directive line padded only with escaped spaces still trims. To keep a line, give it visible text or an <code>[= ]</code>.</li>
-<li><strong>Only <code>\n</code> ends a line.</strong> CRLF files work naturally (the <code>\r</code> trims away with its line), but CR-only line endings (classic Mac) are not line endings: such a file is one long line — nothing trims, and the <code>\r</code>s render through as ordinary text.</li>
-</ul>
-
-<h3 id="caveat-12">12. Seeded data</h3>
-
-<ul>
-<li>Scalars from a data context are <strong>stringified</strong>: <code>true</code> → <code>"1"</code>, <code>false</code> → <code>"0"</code> (an answer), <code>null</code> → <code>""</code> (the absence of one). All of <code>false</code>/<code>null</code> remain falsy; <code>false</code> never becomes the string <code>"false"</code>.</li>
-<li>An inline <code>[set]</code> <strong>overrides</strong> a seeded value; via the CLI, a later <code>--set</code> / <code>--json</code> overrides an earlier one. <code>--json</code> merging is map-wise: objects deep-merge key by key, but a JSON <strong>list</strong> replaces the previous value wholesale (overriding <code>["a","b","c"]</code> with <code>["x"]</code> yields <code>["x"]</code> — no leftover tail).</li>
-<li><code>--set a.b=c</code> builds the nested path <code>a.b</code>; the value is always a string. Keys are validated as dot-paths (<code>--set 'a b=c'</code> is a CLI error). Keys in seeded PHP arrays are the host app's responsibility — invalid ones are unreachable from templates.</li>
-<li><strong>A purely numeric path segment is an integer index</strong> — <code>.01</code>, <code>.1</code> and an appended slot <code>1</code> all address the same key (PHP's array keying). A seeded <strong>string</strong> key like <code>'01'</code> (which PHP keeps as a string) is therefore unreachable from templates: <code>[= @a.01]</code> reads the int key <code>1</code> and misses.</li>
-<li><strong>A seeded <code>null</code> is an empty <em>scalar</em>, not an absent key</strong> — descending into it (<code>[set a.b = x]</code> with <code>['a' => null]</code>) is a path conflict. Omit the key entirely to let the template build the container.</li>
-<li>Seeded <strong>values</strong> must be scalars, null or arrays — anything else (objects, resources) throws <code>InvalidArgumentException</code> naming the offending key path. Non-finite floats (<code>INF</code> / <code>NAN</code>) are rejected the same way; an ordinary float seeds by its PHP string form, which beyond ~15 significant digits is scientific notation (<code>1.0E+20</code>) — no longer a Number by the text rule.</li>
-<li><strong>CLI seeding is later-wins, wholesale</strong>: <code>--set a=x --set a.c=2</code> silently rebuilds <code>a</code> as a map (the scalar is dropped). Inline <code>[set]</code> is a template mutation and errors on the same conflict (<code>cannot descend into scalar</code>) — seeding describes a desired end state; the template protects its own.</li>
-</ul>
-
-<h3 id="caveat-13">13. Resource limits</h3>
-
-<p>Templates are the host app's own files — trusted input. There is deliberately no nesting-depth or iteration cap: a pathological template (e.g. ~100,000 nested <code>[if]</code>s) eventually hits PHP's own stack/memory limits as a fatal error rather than a <code>SyntaxError</code>. Realistic nesting (tested to 20,000 deep) and arbitrarily long-running range loops are fine.</p>
-
-<h3 id="caveat-resolved">Not a caveat anymore (resolved)</h3>
-
-<p>These earlier limitations were removed by later design changes and are listed only to avoid confusion:</p>
-
-<ul>
-<li><em>Mid-word emitting</em> — <code>[= @x]</code> has a clear close, so <code>con[= @x]tetur</code> works.</li>
-<li><em>Range start could not be a <code>@ref</code></em> — fixed by the <code>to</code>/<code>by</code> keywords (<code>@lo to @hi by @step</code>).</li>
-<li><em>Computed values needed a wrapper in inline sets</em> — the self-closing value scan is bracket-aware, so <code>[set total = [= @price * @qty]]</code> nests directly.</li>
-</ul>
-</section>
-
-<footer>
-	<p>Source, tests, and the full file listing live in the <a href="https://github.com/syncroze/ldt-lang">repository</a>.</p>
-</footer>
+	</div>
+	</main>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 <script>Prism.plugins.autoloader.languages_path = 'https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/';</script>
 <script src="assets/ldt-prism.js"></script>
+<script src="assets/nav.js"></script>
 </body>
 </html>

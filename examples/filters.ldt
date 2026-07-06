@@ -1,39 +1,61 @@
-[# ldt-lang filters — a postfix pipe chain: value | filter: arg, arg | ... #]
-[# Works inside [= ]. Args after ':' are full expressions, separated by    #]
-[# commas. (Labels below escape the opener as \[= so they print.)          #]
+[# ===================================================================
+   ldt-lang — filters: a postfix pipe chain "value | filter: arg, arg".
+   Only available inside [= ] (never in [if]/[for] conditions). Args
+   after ':' are full expressions, comma-separated.
+   =================================================================== #]
 
-[# --- string filters ---------------------------------------------------- #]
+[# --- string filters ------------------------------------------------------ #]
 [set name]  ada lovelace  [/set]
 trim + upper : [= @name | trim | upper]
 capitalize   : [= @name | trim | capitalize]
 truncate     : [= @name | trim | truncate: 8, "…"]
 
-[# --- array filters ----------------------------------------------------- #]
+[# case filters are ASCII-only — a non-ASCII letter passes through as-is #]
+[set accented = café]
+upper leaves é untouched : [= @accented | upper]
+
+[# truncate never splits a multi-byte character — it backs off to the
+   last complete UTF-8 character before the cut #]
+[set snack = café]
+truncate mid-character backs off : [= @snack | truncate: 4]
+
+[# --- array filters: arrays may flow through, but must end as a scalar -- #]
 [set items. = pen][set items. = ink][set items. = pad]
 join  : [= @items | join: ", "]
 first : [= @items | first | upper]
 last  : [= @items | last]
+[# [= @items | upper] (ending on an array) is a loud "add a join" error —
+   not executed here #]
 
-[# --- number filters ---------------------------------------------------- #]
+[# --- number filters ------------------------------------------------------ #]
 [set pi = 3.14159][set temp = -7]
 round : [= @pi | round: 2]
 abs   : [= @temp | abs]
 
-[# --- html escaping ----------------------------------------------------- #]
+[# --- html escaping -------------------------------------------------------- #]
 [set snippet = <b>bold</b> & "quotes"]
-html  : [= @snippet | html]
+html : [= @snippet | html]
 
-[# --- default: fallback for falsy values (same rule as [if]) ------------- #]
-who    : [= @missing | default: "guest"]
+[# --- default: fallback — falsy-triggered, full-expression arg, lazy ----- #]
+who     : [= @missing | default: "guest"]
 [set blank = ]
-blank  : [= @blank | default: "(none)"]
+blank   : [= @blank | default: "(none)"]
 [set fb = Backup]
 var arg : [= @missing | default: @fb]
 expr arg: [= @missing | default: 2 + 3]
-cascade : [set empty = ][= @missing | default: @empty | default: "last resort"]
 
-[# --- filters on computed expressions and in args ------------------------ #]
+[# a plain @ref argument reads the RAW value, so an array can be the
+   fallback for another array #]
+[set backup. = x][set backup. = y]
+[set primary = ]
+array fallback : [= @primary | default: @backup | join: "-"]
+
+[# --- filters apply to the FINISHED value: compute first, then pipe ----- #]
 [set width = 5]
 on a computation : [= 0 - 42 | abs]
-expr arg         : [= @name | trim | truncate: @width + 3, "…"]
-ref arg          : [set sep = -][= @items | join: @sep]
+expr in an arg    : [= @name | trim | truncate: @width + 3, "…"]
+ref in an arg     : [set sep = " / "][= @items | join: @sep]
+
+[# --- arity is enforced: extra or missing filter args are a loud error;
+   filters with no args (upper, trim, …) reject any argument. Not
+   executed here since it would abort the render. #]
