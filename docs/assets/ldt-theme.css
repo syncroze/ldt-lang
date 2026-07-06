@@ -3,55 +3,55 @@
 
 pre.language-ldt,
 code.language-ldt {
-	background: #1e1e1e;
-	color: #e6e6e6;
+	background: #2d2d2d;
+	color: #dedede;
 }
 
 /* same as base text, but needed: Prism's Tomorrow theme (loaded for the
    PHP/bash snippets) would otherwise paint these red / cyan / bold-purple */
 code.language-ldt .token.tag {
-	color: #e6e6e6;
+	color: #dedede;
 }
 
 code.language-ldt .token.comment {
-	color: #9aa5b8;
+	color: #cccccc;
 	font-style: italic;
 }
 
 code.language-ldt .token.punctuation {
-	color: #9aa5b8;
+	color: #cccccc;
 }
 
 code.language-ldt .token.keyword {
-	color: #ff54ac;
+	color: #cc99cd;
 }
 
 code.language-ldt .token.variable {
-	color: #00a9cf;
+	color: #4adeea;
 }
 
 code.language-ldt .token.sigil {
-	color: #9aa5b8;
+	color: #cccccc;
 }
 
 code.language-ldt .token.string {
-	color: #ffd167;
+	color: #f8c555;
 }
 
 code.language-ldt .token.number {
-	color: #ef8039;
+	color: #f08d49;
 }
 
 code.language-ldt .token.operator {
-	color: #e6e6e6;
+	color: #dedede;
 }
 
 code.language-ldt .token.function {
-	color: #66bb6a;
+	color: #9adf6a;
 }
 
 code.language-ldt .token.escape {
-	color: #e6e6e6;
+	color: #dedede;
 	font-style: italic;
 	font-weight: normal;
 }
