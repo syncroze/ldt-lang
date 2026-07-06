@@ -9,7 +9,8 @@ Complete file listing for ldt-lang, with a one-line description of each.
 - [`TASKS.md`](TASKS.md) — task/audit log: numbered work batches, audit surface map, deferred items.
 - [`HISTORY.md`](HISTORY.md) — full design/decision log: rationale for major choices, alternatives considered and rejected, chronological audit-round writeups.
 - [`FILES.md`](FILES.md) — this file.
-- [`composer.json`](composer.json) — Composer package metadata (namespace `Ldtlang\`, no runtime dependencies).
+- [`LICENSE`](LICENSE) — MIT license.
+- [`composer.json`](composer.json) — Composer package metadata (`syncroze/ldt-lang`, namespace `Ldtlang\`, no runtime dependencies).
 - [`autoload.php`](autoload.php) — zero-dependency PSR-4-style autoloader for `src/`.
 
 ## [`bin/`](bin/)

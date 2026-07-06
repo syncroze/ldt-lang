@@ -1,8 +1,9 @@
 {
-    "name": "syncroze/ldtlang",
+    "name": "syncroze/ldt-lang",
     "description": "ldt-lang — Logic Driven Text Language, an embeddable templating language (.ldt files), interpreted in PHP.",
     "type": "library",
-    "license": "proprietary",
+    "license": "MIT",
+    "homepage": "https://syncroze.github.io/ldt-lang/",
     "require": {
         "php": ">=8.1"
     },
