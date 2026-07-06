@@ -3,7 +3,7 @@
 
 pre.language-ldt,
 code.language-ldt {
-	background: #1e1e24;
+	background: #1e1e1e;
 	color: #e6e6e6;
 }
 
@@ -23,11 +23,11 @@ code.language-ldt .token.punctuation {
 }
 
 code.language-ldt .token.keyword {
-	color: #ff6ac1;
+	color: #ff54ac;
 }
 
 code.language-ldt .token.variable {
-	color: #59c2ff;
+	color: #00a9cf;
 }
 
 code.language-ldt .token.sigil {
@@ -35,11 +35,11 @@ code.language-ldt .token.sigil {
 }
 
 code.language-ldt .token.string {
-	color: #f0b100;
+	color: #ffd167;
 }
 
 code.language-ldt .token.number {
-	color: #ff6201;
+	color: #ef8039;
 }
 
 code.language-ldt .token.operator {
@@ -47,7 +47,7 @@ code.language-ldt .token.operator {
 }
 
 code.language-ldt .token.function {
-	color: #7ccf00;
+	color: #66bb6a;
 }
 
 code.language-ldt .token.escape {
