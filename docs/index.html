@@ -226,7 +226,8 @@ unary minus : [= -@a + 20]</code></pre>
 
 	<pre><code class="language-ldt">[= @name | trim | upper]
 [= @items | join: ", "]
-[= @text | truncate: @width - 2, "…"]</code></pre>
+[= @text | truncate: @width - 2, "…"]
+{"first_name": [= @rec.first | json], "qty": [= @rec.qty]}</code></pre>
 
 	<table>
 	<thead><tr><th>Filter</th><th>Behavior</th></tr></thead>
@@ -240,6 +241,7 @@ unary minus : [= -@a + 20]</code></pre>
 	<tr><td><code>round [: n]</code></td><td>round to <code>n</code> decimals (default 0)</td></tr>
 	<tr><td><code>abs</code></td><td>absolute value</td></tr>
 	<tr><td><code>html</code></td><td>escape <code>&lt; &gt; &amp; " '</code> for HTML</td></tr>
+	<tr><td><code>json</code></td><td>a complete JSON string value, quotes included — <code>"</code> <code>\</code> and control characters escaped</td></tr>
 	<tr><td><code>default: value</code></td><td>fallback when the input is falsy (same rule as <code>[if]</code>)</td></tr>
 	</tbody>
 	</table>
@@ -250,6 +252,7 @@ unary minus : [= -@a + 20]</code></pre>
 	<li><strong>A plain <code>@ref</code> argument reads the raw value</strong>, like the chain input — so an array can be the <code>default:</code> fallback for another array. Scalar-expecting args (<code>truncate</code>/<code>round</code>/<code>join</code>) still reject an array argument.</li>
 	<li><strong><code>truncate</code> is UTF-8 safe</strong>: when the byte cut lands inside a multi-byte character, the incomplete tail is dropped before the suffix is added.</li>
 	<li><code>default</code> alone also satisfies <code>--strict</code> for an undefined path; every other filter's <strong>arguments</strong> are never strict-guarded either way.</li>
+	<li><strong><code>json</code> is self-quoting</strong>: write <code>"name": [= @name | json]</code>, not <code>"[= @name | json]"</code>. It always emits a string — a numeric-looking value such as a ZIP <code>01234</code> stays <code>"01234"</code>, so emit a real number bare (<code>"qty": [= @qty]</code>, digits need no escaping). Unicode and <code>/</code> pass through; invalid UTF-8 is replaced with U+FFFD. An undefined value gives <code>""</code> in lax mode (it reaches the chain as an empty string) and is a strict error unless <code>default:</code> precedes it — <code>null</code> is not produced. <code>html</code> is <em>not</em> a JSON escaper: it turns <code>"</code> into <code>&amp;quot;</code>, which parses but stores the wrong text.</li>
 	<li><strong>Arity is enforced</strong> — extra or missing filter arguments are a loud error; no-arg filters (<code>upper</code>, <code>trim</code>, …) reject any argument.</li>
 	</ul>
 

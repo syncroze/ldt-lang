@@ -75,7 +75,7 @@ final class Filters
     private const ARITY = [
         'upper' => [0, 0], 'lower' => [0, 0], 'trim' => [0, 0],
         'capitalize' => [0, 0], 'first' => [0, 0], 'last' => [0, 0],
-        'abs' => [0, 0], 'html' => [0, 0],
+        'abs' => [0, 0], 'html' => [0, 0], 'json' => [0, 0],
         'round' => [0, 1], 'join' => [0, 1],
         'truncate' => [1, 2],
         'default' => [1, 1],
@@ -104,6 +104,7 @@ final class Filters
             'round' => self::round(self::scalar($name, $value), $args),
             'abs' => (string) abs(self::numeric($name, self::scalar($name, $value))),
             'html' => htmlspecialchars(self::scalar($name, $value), ENT_QUOTES),
+            'json' => self::json(self::scalar($name, $value)),
             default => throw new \RuntimeException("unknown filter '$name'"),
         };
     }
@@ -150,6 +151,22 @@ final class Filters
         }
 
         return $cut . $suffix;
+    }
+
+    /**
+     * A complete JSON string value, quotes included: `"`, `\`, control
+     * characters escaped; Unicode and `/` left as they are (valid JSON,
+     * readable payloads). Invalid UTF-8 is substituted (U+FFFD) rather than
+     * failing the render. Always a string — a numeric-looking value such as
+     * a ZIP `01234` would be invalid JSON bare, so a template that wants a
+     * bare number emits the value without this filter.
+     */
+    private static function json(string $value): string
+    {
+        return json_encode(
+            $value,
+            JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE | JSON_THROW_ON_ERROR,
+        );
     }
 
     /** @param string|array<int|string, mixed> $value */

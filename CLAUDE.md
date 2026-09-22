@@ -50,7 +50,9 @@ Writes take a BARE name; reads carry the `@`. `@` in text is ALWAYS literal
   No nesting `[= ]` in `[= ]` (use `( )`); not usable as a range bound.
 - Filters ONLY in `[= ]` (NOT tag conditions): `value | filter: arg, arg`;
   full-expression args; set: upper lower trim capitalize truncate join first
-  last round abs html default.
+  last round abs html json default (`json` = complete self-quoting JSON
+  string value: `"k": [= @v | json]`; always a string; undefined → `""` lax /
+  strict error; NOT an output mode — context tracking was rejected).
 - `[if]/[elseif]/[else]/[/if]`, `[for k, v in @arr]` / `[for n in 1 to 5 by 2]`
   (loop vars bare, iterable/bounds are `@refs`), `[break]`, `[continue]`,
   `[= @loop.index/.index0/.first/.last/.count]`. Argument-less markers accept
@@ -73,5 +75,5 @@ Writes take a BARE name; reads carry the `@`. `@` in text is ALWAYS literal
 - `TASKS.md` — roadmap: Done / Not planned / Deferred.
 - `docs/index.html` (also live at https://ldt-lang.syncroze.com/) —
   full language reference; edge cases/gotchas live inside each numbered section.
-- `tests/run.php` — 460 zero-dependency tests; run with `php tests/run.php`.
+- `tests/run.php` — 477 zero-dependency tests; run with `php tests/run.php`.
   Every change must keep this green and all `examples/*.ldt` rendering.

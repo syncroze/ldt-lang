@@ -783,5 +783,26 @@ check('segmentsOf rejects a quoted root', 'null', implode('|', \Ldtlang\Environm
 check('segmentsOf rejects text after the closer', 'null', implode('|', \Ldtlang\Environment::segmentsOf('h."x-a"c') ?? ['null']));
 check('pathToString re-quotes only odd segments', 'h.ok."x-a".-1', \Ldtlang\Environment::pathToString(['h', 'ok', 'x-a', '-1']));
 
+// --- the json filter: a complete, self-quoting JSON string value -------------------
+check('json quotes a plain value', '"Amit"', Ldt::render('[= @n | json]', ['n' => 'Amit']));
+check('json escapes an embedded quote', '"Amit \"AK\""', Ldt::render('[= @n | json]', ['n' => 'Amit "AK"']));
+check('json escapes a backslash', '"a\\\\b"', Ldt::render('[= @n | json]', ['n' => 'a\\b']));
+check('json escapes newline and tab', '"a\nb\tc"', Ldt::render('[= @n | json]', ['n' => "a\nb\tc"]));
+check('json escapes a control character', '"a\\u001fb"', Ldt::render('[= @n | json]', ['n' => "a\x1fb"]));
+check('json leaves unicode and slashes alone', '"Zoë 日本 a/b"', Ldt::render('[= @n | json]', ['n' => 'Zoë 日本 a/b']));
+check('json substitutes invalid UTF-8', "\"bad\u{FFFD}\"", Ldt::render('[= @n | json]', ['n' => "bad\xff"]));
+check('json keeps a numeric-looking value a string', '"01234"', Ldt::render('[= @zip | json]', ['zip' => '01234']));
+check('json of an empty value', '""', Ldt::render('[= @n | json]', ['n' => '']));
+check('json of an undefined value (lax) is an empty string', '""', Ldt::render('[= @missing | json]'));
+throws('json of an undefined value is a strict error', fn () => Ldt::render('[= @missing | json]', strict: true));
+check('json after default: satisfies strict', '"n/a"', Ldt::render('[= @missing | default: "n/a" | json]', strict: true));
+check('json in a chain', '"AMIT"', Ldt::render('[= @n | trim | upper | json]', ['n' => '  Amit ']));
+check('json on a computed expression', '"7"', Ldt::render('[= @a + 2 | json]', ['a' => '5']));
+throws('json rejects an array (add a join)', fn () => Ldt::render('[= @items | json]', ['items' => ['a']]));
+throws('json takes no arguments', fn () => Ldt::render('[= @n | json: x]', ['n' => 'a']));
+$body = Ldt::render('{"first_name": [= @rec.first | json], "last": [= @rec.last | json], "qty": [= @rec.qty]}',
+    ['rec' => ['first' => 'Amit "AK"', 'last' => "Pro\\be\n", 'qty' => '5']]);
+check('a request body with json filters decodes', 'Amit "AK"|Pro\\be' . "\n|5", implode('|', json_decode($body, true, 512, JSON_THROW_ON_ERROR)));
+
 fwrite(STDOUT, "\n$pass passed, $fail failed\n");
 exit($fail === 0 ? 0 : 1);

@@ -36,6 +36,16 @@ abs   : [= @temp | abs]
 [set snippet = <b>bold</b> & "quotes"]
 html : [= @snippet | html]
 
+[# --- json: a complete, self-quoting JSON string value ------------------- #]
+[set first = Amit "AK"][set last = Pro\be][set qty = 5][set zip = 01234]
+[# write "key": [= @v | json] — the filter adds the quotes; a number that
+   should stay a number is emitted bare, since digits need no escaping;
+   a numeric-LOOKING value (a ZIP) stays a string, "01234" #]
+json : {"first_name": [= @first | json], "last_name": [= @last | json], "qty": [= @qty], "zip": [= @zip | json]}
+[# an undefined value reaches the filter as "" (lax mode) and is a strict
+   error — put default: in front to be safe either way #]
+undefined  : [= @nobody | default: "" | json]
+
 [# --- default: fallback — falsy-triggered, full-expression arg, lazy ----- #]
 who     : [= @missing | default: "guest"]
 [set blank = ]

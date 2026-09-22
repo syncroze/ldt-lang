@@ -628,14 +628,61 @@ renders `4`).
 - **Normalizing in the host** (`x-a` → `x_a`) remains valid and needs no
   language change; quoted segments simply remove the need for it.
 
+## `json` filter — JSON-safe output of values (2026-09-22)
+
+Prompted by production failures on both sides of a webhook integration:
+`"first_name": "[= @rec.first_name]"` breaks as soon as the value holds a
+`"`, `\` or newline (a customer named `Amit "AK"` made a peer retry the
+same event five times and drop the hook; a `Pro\be` outbound came back
+HTTP 400). The `html` filter is not a fix — it makes the JSON parse but
+stores `&quot;`.
+
+**Chosen: an explicit `json` filter.** `[= @v | json]` emits a complete,
+self-quoting JSON string value via `json_encode` with
+`JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE`.
+
+- **Always a string, never a bare number.** Considered and rejected:
+  emitting numeric-looking values bare — a ZIP `01234` or a phone number
+  is numeric-looking and `01234` is invalid JSON. A template that wants a
+  number writes `"qty": [= @qty]` bare; digits need no escaping.
+- **Undefined → `""` (lax), strict error (strict) — not `null`.** An
+  undefined ref reaches a filter chain as `''` (`Interpreter::resolveRef`),
+  indistinguishable from an empty string, and strict guards the ref before
+  the chain runs unless `default:` is present. Producing `null` would need
+  an "undefined" marker flowing into the chain — a separate decision,
+  deferred.
+- Scalar-only (array → the usual "add a join" error); no arguments; free
+  position in a chain (`trim | json`).
+- 17 tests including a whole request body round-tripped through
+  `json_decode`; docs §5 row + paragraph (and the "`html` is not a JSON
+  escaper" note); `examples/filters.ldt`.
+
+**Rejected: a JSON output mode** (the renderer knows when it is inside a
+JSON string literal and escapes every `[= ]` there automatically):
+- It breaks the language's one rule — everything outside `[...]` is literal
+  text; the renderer deliberately knows nothing about the surrounding
+  format (it renders HTML, plain text, CSV and JSON alike).
+- The text is not JSON while rendering: `[for]`/`[if]` emit fragments,
+  half-open objects, trailing commas. "Am I inside a string" would have to
+  be inferred by scanning the output so far for unbalanced `"` — a loop
+  body that emits a quote, or a `\"` in literal text, throws the count off
+  and the mode then escapes the wrong values *silently*.
+- It would also have to give one tag two behaviors (`"qty": [= @qty]` bare
+  vs `"name": "[= @name]"` in a string).
+
+**Noted, not built:** a context-free `escape: 'json'|'html'` render mode
+(string-escape every `[= ]` output, no quotes added, `| raw` to opt out)
+would fix every existing template without edits and needs no context
+tracking. Offered as a follow-up; the user chose the explicit filter.
+
 ## Where things stand
 
 `TASKS.md` tracks the roadmap: DONE = feed-data, loop-metadata, default,
 count, filters, substring-ops, optimization-pass, quoted-set-values, unified-falsy, unset, uniform-set-closer, mini-templates+or-removal+arity+context-keywords,
-the `[= expr]` emit redesign, and quoted path segments. NOT
+the `[= expr]` emit redesign, quoted path segments, and the `json` filter. NOT
 PLANNED = includes, macros, switch/case, custom filters, bool/null literals,
 regex, ternary. DEFERRED = nothing (the audit surface map in TASKS.md is
-fully ticked). 460 tests in `tests/run.php`; examples cover every feature;
+fully ticked). 477 tests in `tests/run.php`; examples cover every feature;
 the GitHub Pages site (`docs/index.html`, live at
 https://ldt-lang.syncroze.com/ — Pages source is the `docs/` folder)
 is the single reference doc —

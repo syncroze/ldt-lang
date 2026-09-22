@@ -43,6 +43,15 @@ Last updated: 2026-09-22.
   `--strict`. Arrays flow through the chain but the final result must be a
   scalar.
 
+### 25. `json` filter — JSON-safe output of values ✅
+- `[= @v | json]` emits a complete JSON string value, quotes included
+  (`"`, `\`, control chars escaped; Unicode and `/` untouched; invalid
+  UTF-8 → U+FFFD). Always a string — numeric-looking values (`01234`) stay
+  strings; a real number is emitted bare. Undefined → `""` in lax mode, a
+  strict error without `default:`; `null` is not produced.
+- Rejected: a JSON *output mode* that tracks string context (see
+  HISTORY.md). 17 new tests (460 → 477), docs §5, `examples/filters.ldt`.
+
 ### 24. Quoted path segments — `@headers."x-shopify-topic"` ✅
 - A `"…"` segment after the first addresses any key that isn't a plain name
   (dashes, spaces, dots). Accepted everywhere a path is read or written:
