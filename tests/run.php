@@ -695,5 +695,93 @@ $toks = \Ldtlang\Trimmer::trim(\Ldtlang\Lexer::tokenize("X[set a = 1]\nY"));
 $last = end($toks);
 check('post-trim TEXT keeps its coordinates', 'TEXT@1:13', "{$last->type}@{$last->line}:{$last->col}");
 
+// --- quoted path segments: @a."any key" -------------------------------------------
+/** Message-text assertion: the SyntaxError message must contain $needle. */
+function errorSays(string $name, string $needle, callable $fn): void
+{
+    $msg = '';
+    try {
+        $fn();
+    } catch (\Ldtlang\SyntaxError $e) {
+        $msg = $e->getMessage();
+    }
+    check($name, '1', str_contains($msg, $needle) ? '1' : $msg);
+}
+
+$hdr = ['headers' => ['x-shopify-topic' => 'orders/create', 'x_ok' => 'fine']];
+$meta = ['meta' => ['rate-limits' => ['max-n' => 3, 'b' => 2]]];
+
+// reads
+check('emit a dashed key', 'orders/create', Ldt::render('[= @headers."x-shopify-topic"]', $hdr));
+check('emit a dashed key (strict)', 'orders/create', Ldt::render('[= @headers."x-shopify-topic"]', $hdr, strict: true));
+check('[if] truthiness through a quoted segment', 'y', Ldt::render('[if @headers."x-shopify-topic"]y[/if]', $hdr));
+check('[if] comparison through a quoted segment', 'y', Ldt::render('[if @headers."x-shopify-topic" == "orders/create"]y[else]n[/if]', $hdr));
+check('bare segment after a quoted one', '2', Ldt::render('[= @meta."rate-limits".b]', $meta));
+check('quoted segment after a quoted one', '3', Ldt::render('[= @meta."rate-limits"."max-n"]', $meta));
+check('index after a quoted segment', 'b', Ldt::render('[= @m."x-y".1]', ['m' => ['x-y' => ['a', 'b']]]));
+check('key containing a dot', 'Shop', Ldt::render('[= @cfg."app.name"]', ['cfg' => ['app.name' => 'Shop']]));
+check('key containing spaces and a colon', 'v', Ldt::render('[= @h."Content Type: x"]', ['h' => ['Content Type: x' => 'v']]));
+check('count through a quoted segment', '2', Ldt::render('[= count @meta."rate-limits"]', $meta));
+check('defined through a quoted segment', 'y', Ldt::render('[if defined @headers."x-shopify-topic"]y[/if]', $hdr));
+check('default: with a quoted-segment ref arg', 'orders/create', Ldt::render('[= @nope | default: @headers."x-shopify-topic"]', $hdr));
+check('filters after a quoted-segment ref', 'ORDERS/CREATE', Ldt::render('[= @headers."x-shopify-topic" | upper]', $hdr));
+check('escaped quote inside a segment', 'q', Ldt::render('[= @h."a\"b"]', ['h' => ['a"b' => 'q']]));
+check('escaped backslash inside a segment', 'q', Ldt::render('[= @h."a\\\\b"]', ['h' => ['a\\b' => 'q']]));
+check('backslash before a letter stays literal in a segment', 'q', Ldt::render('[= @h."C:\Users"]', ['h' => ['C:\Users' => 'q']]));
+check('] inside a quoted segment in [= ]', 'v', Ldt::render('[= @h."x]y"]', ['h' => ['x]y' => 'v']]));
+check('] inside a quoted segment in [if]', 'y', Ldt::render('[if @h."x]y"]y[else]n[/if]', ['h' => ['x]y' => 'v']]));
+check('| inside a quoted segment is not a filter', 'v', Ldt::render('[= @h."a|b"]', ['h' => ['a|b' => 'v']]));
+check('quoted-segment ref minus a number', '2', Ldt::render('[= @meta."rate-limits"."max-n" - 1]', $meta));
+check('quoted-segment ref inside parentheses', '6', Ldt::render('[= (@meta."rate-limits"."max-n" + 3)]', $meta));
+check('regression: @n-1 is still subtraction', '4', Ldt::render('[= @n-1]', ['n' => 5]));
+check('regression: hyphenated bareword literal in [if]', 'y', Ldt::render('[if @r == super-admin]y[/if]', ['r' => 'super-admin']));
+check('regression: negative index in [if]', 'y', Ldt::render('[if @a.-1]y[else]n[/if]', ['a' => [-1 => 'x']]));
+check('quoted negative index works inside [= ]', 'x', Ldt::render('[= @a."-1"]', ['a' => [-1 => 'x']]));
+check('quoted numeric segment is still an int index', 'q', Ldt::render('[set x."01" = q][= @x.1]'));
+
+// writes
+check('[set] a dashed key', '1', Ldt::render('[set h."x-a" = 1][= @h."x-a"]'));
+check('[set] block form with ] inside the segment', 'v', Ldt::render('[set h."a]b"]v[/set][= @h."a]b"]'));
+check('[set] = form with = inside the segment', '1', Ldt::render('[set h."x=y" = 1][= @h."x=y"]'));
+check('[set] = form with ] inside the segment', '1', Ldt::render('[set h."x]y" = 1][= @h."x]y"]'));
+check('append after a quoted segment', 'x,y', Ldt::render('[set a."b-c". = x][set a."b-c". = y][= @a."b-c" | join: ","]'));
+check('deeper write under a quoted segment', 'z', Ldt::render('[set a."b-c".d = z][= @a."b-c".d]'));
+check('[unset] dashed keys', '0,1', Ldt::render('[set h."x-a" = 1][set h.b = 2][unset h."x-a"][= defined @h."x-a"],[= defined @h.b]'));
+check('[unset] a list with a quoted segment', '0,0', Ldt::render('[set h."x-a" = 1][set n = 2][unset h."x-a", n][= defined @h."x-a"],[= defined @n]'));
+check('quoted segment inside a [set] mini-template value', 'ORDERS/CREATE', Ldt::render('[set o = [= @headers."x-shopify-topic" | upper]][= @o]', $hdr));
+check('nested [set] with a quoted segment inside a value', 'k', Ldt::render('[set o = [set h."x-a" = k]][= @h."x-a"]'));
+check('] in a quoted segment inside a nested [set] value needs \\]', 'v', Ldt::render('[set o = [= @h."x\\]y"]][= @o]', ['h' => ['x]y' => 'v']]));
+throws('unescaped ] in a quoted segment inside a nested [set] value ends the value', fn () => Ldt::render('[set o = [= @h."x]y"]][= @o]', ['h' => ['x]y' => 'v']]));
+check('[set] over a seeded dashed key overrides it', 'new', Ldt::render('[set headers."x-shopify-topic" = new][= @headers."x-shopify-topic"]', $hdr));
+
+// iteration
+check('[for] over a quoted-segment array', 'max-n=3;b=2;', Ldt::render('[for k, v in @meta."rate-limits"][= @k]=[= @v];[/for]', $meta));
+check('range bound through a quoted segment', '123', Ldt::render('[for i in 1 to @meta."rate-limits"."max-n"][= @i][/for]', $meta));
+check('loop key with a dash re-read through a quoted segment', 'orders/create', Ldt::render('[for k, v in @headers][if @k == "x-shopify-topic"][= @headers."x-shopify-topic"][/if][/for]', $hdr));
+
+// errors
+errorSays('unterminated quoted segment in [= ]', 'unterminated quoted segment', fn () => Ldt::render('[= @headers."x-a]'));
+errorSays('unterminated quoted segment in [if]', 'unterminated quoted segment', fn () => Ldt::render('[if @headers."x-a]y[/if]'));
+errorSays('unterminated quoted segment in [for]', 'unterminated quoted segment', fn () => Ldt::render('[for k in @h."x]y[/for]'));
+errorSays('unterminated quoted segment in [set]', 'unterminated quoted segment', fn () => Ldt::render('[set h."x-a = 1]'));
+errorSays('unterminated quoted segment in [unset]', 'unterminated quoted segment', fn () => Ldt::render('[unset h."x-a]'));
+errorSays('empty quoted segment', 'invalid reference', fn () => Ldt::render('[= @headers.""]'));
+errorSays('quoted first segment', 'starts with a bare name', fn () => Ldt::render('[= @"x-a"]'));
+errorSays('quoted first segment in [set]', 'expected a variable path', fn () => Ldt::render('[set "x-a" = 1]'));
+errorSays('text glued after a closing quote', 'invalid reference', fn () => Ldt::render('[= @headers."x-a"c]'));
+errorSays('trailing dot after a quoted segment in a ref', 'invalid reference', fn () => Ldt::render('[= @headers."x-a".]'));
+errorAt('quoted-segment errors point at the ref', 1, 4, fn () => Ldt::render('[= @headers."x-a]'));
+errorSays('strict undefined message re-quotes the path', 'undefined reference @h."x-a"', fn () => Ldt::render('[= @h."x-a"]', strict: true));
+errorSays('descend-into-scalar message re-quotes the path', "(path 'h.\"x-a\".z')", fn () => Ldt::render('[set h."x-a" = 1][set h."x-a".z = 2]'));
+errorSays('cannot-iterate message re-quotes the path', 'cannot iterate @headers."x-shopify-topic"', fn () => Ldt::render('[for k in @headers."x-shopify-topic"]x[/for]', $hdr));
+errorSays('re-quoted path escapes an inner quote', '@h."a\"b"', fn () => Ldt::render('[= @h."a\"b"]', strict: true));
+
+// the shared validator (what `bin/ldt --set` calls)
+check('segmentsOf splits a quoted segment', 'h|x-a', implode('|', \Ldtlang\Environment::segmentsOf('h."x-a"') ?? ['null']));
+check('segmentsOf keeps a dot inside quotes', 'cfg|app.name', implode('|', \Ldtlang\Environment::segmentsOf('cfg."app.name"') ?? ['null']));
+check('segmentsOf rejects a quoted root', 'null', implode('|', \Ldtlang\Environment::segmentsOf('"x-a"') ?? ['null']));
+check('segmentsOf rejects text after the closer', 'null', implode('|', \Ldtlang\Environment::segmentsOf('h."x-a"c') ?? ['null']));
+check('pathToString re-quotes only odd segments', 'h.ok."x-a".-1', \Ldtlang\Environment::pathToString(['h', 'ok', 'x-a', '-1']));
+
 fwrite(STDOUT, "\n$pass passed, $fail failed\n");
 exit($fail === 0 ? 0 : 1);

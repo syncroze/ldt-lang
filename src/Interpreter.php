@@ -221,7 +221,7 @@ final class Interpreter
             return []; // undefined → zero iterations
         }
         if (!is_array($raw)) {
-            $ref = implode('.', $it['segments']);
+            $ref = Environment::pathToString($it['segments']);
             $this->fail($node, "cannot iterate @{$ref}: not an array");
         }
 
@@ -267,12 +267,12 @@ final class Interpreter
         }
         $value = $env->lookup($bound['segments']);
         if ($value === null || preg_match('/^[+-]?\d+$/', $value) !== 1) {
-            $ref = implode('.', $bound['segments']);
+            $ref = Environment::pathToString($bound['segments']);
             $this->fail($node, "range bound @{$ref} must be an integer");
         }
         // (int) saturates silently on overflow — reject instead.
         if (!Expr::intInRange($value)) {
-            $ref = implode('.', $bound['segments']);
+            $ref = Environment::pathToString($bound['segments']);
             $this->fail($node, "range bound @{$ref} ('$value') is out of the integer range");
         }
         return (int) $value;
@@ -295,7 +295,7 @@ final class Interpreter
             $env->assign($segments, $append, $value);
         } catch (PathConflict $e) {
             throw new SyntaxError(
-                $e->getMessage() . " (path '" . implode('.', $segments) . "')",
+                $e->getMessage() . " (path '" . Environment::pathToString($segments) . "')",
                 $token->line,
                 $token->col,
                 $this->file,
@@ -333,7 +333,7 @@ final class Interpreter
         if ($filters === []) {
             if ($raw === null) {
                 if ($this->strict) {
-                    $ref = implode('.', $segments);
+                    $ref = Environment::pathToString($segments);
                     throw new SyntaxError("undefined reference @{$ref}", $token->line, $token->col, $this->file);
                 }
                 return '';
@@ -344,7 +344,7 @@ final class Interpreter
         // With filters, the raw value feeds the chain (arrays reach join/…).
         if ($raw === null) {
             if ($this->strict && !Filters::chainHasDefault($filters)) {
-                $ref = implode('.', $segments);
+                $ref = Environment::pathToString($segments);
                 throw new SyntaxError("undefined reference @{$ref}", $token->line, $token->col, $this->file);
             }
             $raw = ''; // a `default` filter (or lax mode) handles it

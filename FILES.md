@@ -43,14 +43,21 @@ Complete file listing for ldt-lang, with a one-line description of each.
 
 ## [`examples/`](examples/)
 
-- [`examples/assignments.ldt`](examples/assignments.ldt) — `[set]`/`[unset]` variable assignment and dot-path demos.
-- [`examples/conditions.ldt`](examples/conditions.ldt) — `[if]/[elseif]/[else]` conditional demos.
-- [`examples/data.ldt`](examples/data.ldt) — rendering seeded data (paired with `data.json`).
-- [`examples/data.json`](examples/data.json) — sample JSON data consumed by `data.ldt` via the CLI `--json` flag.
-- [`examples/expressions.ldt`](examples/expressions.ldt) — `[= ]` expression syntax demos (operators, refs, word-operators).
-- [`examples/filters.ldt`](examples/filters.ldt) — `|filter` chain demos.
-- [`examples/limitations.ldt`](examples/limitations.ldt) — documented edge cases/known limitations demonstrated in template form.
-- [`examples/loops.ldt`](examples/loops.ldt) — `[for]` loop demos, including ranges and loop metadata (`loop.count`, etc.).
+- [`examples/assignment.ldt`](examples/assignment.ldt) — `[set]`/`[unset]`, dot-paths, append, quoted values (docs §2).
+- [`examples/conditionals.ldt`](examples/conditionals.ldt) — `[if]/[elseif]/[else]` and the falsy rule (§6).
+- [`examples/data-model.ldt`](examples/data-model.ldt) — the two data types and nested arrays (§1).
+- [`examples/data.json`](examples/data.json) — sample JSON consumed by `feeding-data-in.ldt` via the CLI `--json` flag.
+- [`examples/emit.ldt`](examples/emit.ldt) — the `[= ]` emit tag (§3).
+- [`examples/escaping.ldt`](examples/escaping.ldt) — the `\` escape rule (§8).
+- [`examples/expressions.ldt`](examples/expressions.ldt) — operators, refs, word-operators (§4).
+- [`examples/feeding-data-in.ldt`](examples/feeding-data-in.ldt) — seeding data from PHP/CLI (§9).
+- [`examples/filters.ldt`](examples/filters.ldt) — `|filter` chains (§5).
+- [`examples/loops.ldt`](examples/loops.ldt) — `[for]` loops, ranges, loop metadata (§7).
+- [`examples/not-possible.ldt`](examples/not-possible.ldt) — what the language deliberately does not do (§13).
+- [`examples/quoted-keys.ldt`](examples/quoted-keys.ldt) — quoted path segments for keys with dashes/spaces/dots (§2).
+- [`examples/resource-limits.ldt`](examples/resource-limits.ldt) — lazy ranges, overflow guards (§12).
+- [`examples/strict-mode.ldt`](examples/strict-mode.ldt) — `--strict` behavior (§10).
+- [`examples/whitespace-trimming.ldt`](examples/whitespace-trimming.ldt) — directive-line trimming (§11).
 
 ## [`editor/phpstorm/`](editor/phpstorm/)
 

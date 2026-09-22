@@ -129,6 +129,17 @@ compares as a number : [= @id == 7]
 
 	<p><strong>Assigning a scalar over a map replaces it wholesale</strong> — <code>[set a.b = 1][set a = x]</code> silently drops the whole subtree, <code>a.b</code> becomes undefined. Only the reverse is loud: <em>descending into</em> a scalar (<code>[set a = x][set a.b = 1]</code>) is a <code>cannot descend into scalar</code> error. Negative indexes are valid keys (<code>[set a.-1 = v]</code>); an append landing after a lone negative key starts at <code>0</code> (PHP's max-int-key-plus-one rule).</p>
 
+	<p><strong>Quoted segments</strong> address keys that are not plain names — dashes, spaces, colons, even dots: write the segment as <code>"…"</code> after the dot. The first segment is always a bare name; inside the quotes the usual escapes apply (<code>\"</code>, <code>\\</code>); an empty <code>""</code> is an error. A quoted segment is keyed exactly like a bare one, so <code>"01"</code> is still the integer index <code>1</code>. Reads, writes, <code>[unset]</code>, <code>[for]</code>, range bounds and the CLI's <code>--set</code> all accept them.</p>
+
+	<pre><code class="language-ldt">[set headers."x-request-id" = abc]       write a dashed key
+[= @headers."x-shopify-topic"]           read one — in [= ], [if], [for] alike
+[= @cfg."app.name"]                      a key that itself contains a dot
+[unset headers."x-request-id"]
+[for k, v in @meta."rate-limits"]…[/for]
+[set a."b-c". = x]                       append still works after a quoted segment</code></pre>
+
+	<p>One wrinkle: inside a nested self-closing <code>[set … = …]</code> value the outer scan pairs <code>[ ]</code> before the inner tag is parsed, so a <code>]</code> inside a quoted segment <em>there</em> must be written <code>\]</code>. Everywhere else a quoted segment may contain <code>]</code>, <code>=</code> or <code>|</code> freely.</p>
+
 	<p><strong><code>[unset]</code> removes; it never empties.</strong></p>
 
 	<pre><code class="language-ldt">[unset draft]                    the name becomes undefined again
@@ -143,7 +154,7 @@ compares as a number : [= @id == 7]
 	<li>Reset-a-container idiom: <code>[unset g][set g.k = v]</code> — a plain <code>[set g = ]</code> would make <code>g</code> a scalar and a later <code>g.k</code> set would error.</li>
 	</ul>
 
-	<p>See <code>examples/assignment.ldt</code>.</p>
+	<p>See <code>examples/assignment.ldt</code> and <code>examples/quoted-keys.ldt</code>.</p>
 	</section>
 
 	<section id="emit">
@@ -195,10 +206,13 @@ unary minus : [= -@a + 20]</code></pre>
 	<pre><code class="language-ldt">[= @file contains "port"]       [= @file starts with "report"]
 [= not @file contains "xlsx"]   [= @file contains ""]     → always 1</code></pre>
 
-	<p>Because arithmetic is on inside <code>[= ]</code>, <code>-</code> is the subtract operator — an unquoted hyphenated bareword parses as arithmetic and fails; quote it. The same trade-off hits a <strong>negative array index</strong>: <code>@a.-1</code> reads fine in <code>[if]</code>/<code>[for]</code> (no arithmetic there), but inside <code>[= ]</code> the <code>-</code> is subtraction, so reach such a slot by iteration instead:</p>
+	<p>Because arithmetic is on inside <code>[= ]</code>, <code>-</code> is the subtract operator — an unquoted hyphenated bareword parses as arithmetic and fails; quote it. A <em>dashed key</em> is the same story — <code>@headers.x-shopify-topic</code> is <code>x − shopify − topic</code> — so write the segment quoted (§2). The same trade-off hits a <strong>negative array index</strong>: <code>@a.-1</code> reads fine in <code>[if]</code>/<code>[for]</code> (no arithmetic there), but inside <code>[= ]</code> the <code>-</code> is subtraction; quote it there too:</p>
 
-	<pre><code class="language-ldt">[= @role == super-admin]      →  error (parsed as super − admin)
-[= @role == "super-admin"]    →  ok</code></pre>
+	<pre><code class="language-ldt">[= @role == super-admin]          →  error (parsed as super − admin)
+[= @role == "super-admin"]        →  ok
+[= @headers.x-shopify-topic]      →  error (x − shopify − topic)
+[= @headers."x-shopify-topic"]    →  ok (quoted segment, §2)
+[= @a."-1"]                       →  ok (quoted negative index)</code></pre>
 
 	<p>Quoted strings support escapes (<code>\"</code>, <code>\\</code>) and may span multiple lines — this is the <em>only</em> place a bare <code>\</code> escape works inside an expression (see §8). A leading <code>+</code> is still a Number: <code>+5</code> compares as <code>5</code>, and <code>+0</code> is falsy like <code>-0</code>.</p>
 
@@ -321,6 +335,7 @@ ldt --json data.json --set site=X f.ldt  # later flags win</code></pre>
 	<li><strong>A seeded <code>null</code> is an empty <em>scalar</em>, not an absent key</strong> — it reads as <code>""</code> and is <code>defined</code>; descending into it with a template <code>[set]</code> is a path conflict. Omit the key entirely to let the template build the container instead.</li>
 	<li><code>--json</code> deep-merges <strong>maps</strong> key by key, but a JSON <strong>list</strong> replaces the previous value wholesale — no element-wise merge.</li>
 	<li><strong>A purely numeric-looking key collides with an integer array position</strong>, the same rule as dot-paths (§2): a JSON object key <code>"1"</code> and a JSON list's second element (index <code>1</code>) address the very same slot if merged onto the same path.</li>
+	<li>Seeded keys that are not plain names (<code>x-shopify-topic</code>, <code>app.name</code>) are reached with a <strong>quoted segment</strong> (§2): <code>[= @headers."x-shopify-topic"]</code>; on the CLI, <code>--set 'headers."x-request-id"=abc'</code> seeds one.</li>
 	<li>Seeded values must be scalars, <code>null</code>, or arrays — anything else (an object, a resource) is a loud error at seed time. <strong>Non-finite floats</strong> (<code>INF</code>/<code>NAN</code>) are rejected too, since they'd stringify to words, not Numbers.</li>
 	</ul>
 

@@ -34,6 +34,13 @@ Writes take a BARE name; reads carry the `@`. `@` in text is ALWAYS literal
   descending INTO a scalar)
 - `[unset a, b.c]` — bare names; removes paths entirely (undefined again);
   no-op if missing; index removal leaves holes
+- QUOTED SEGMENTS `a."any key"` (since 2026-09-22): a `"…"` segment after
+  the first addresses a key that isn't a plain name (dashes, spaces, dots —
+  `@headers."x-shopify-topic"`); first segment always bare; usual `\"`/`\\`
+  escapes; empty `""` is an error; keyed like bare (`"01"` ≡ `.1`); accepted
+  by reads, `[set]`, `[unset]`, `[for]`, range bounds and CLI `--set`. Only
+  wrinkle: a `]` inside the quotes within a NESTED self-closing `[set]` value
+  needs `\]` (the outer bracket-pair scan runs first).
 - `[= expr | filters]` — THE emit tag (replaced `@{path}` and `@(expr)`):
   plain `[= @path]` interpolates (strict-guarded, booleans textualize `1`/`0`,
   arrays render ''); computed expressions: integer `+ - * / %`, comparisons,
@@ -65,6 +72,6 @@ Writes take a BARE name; reads carry the `@`. `@` in text is ALWAYS literal
   regex, ternary, bool/null literals, custom filters, includes, macros).
 - `TASKS.md` — roadmap: Done / Not planned / Deferred.
 - `docs/index.html` (also live at https://ldt-lang.syncroze.com/) —
-  full language reference and every edge case/gotcha (the "Caveats" section).
-- `tests/run.php` — 398 zero-dependency tests; run with `php tests/run.php`.
+  full language reference; edge cases/gotchas live inside each numbered section.
+- `tests/run.php` — 460 zero-dependency tests; run with `php tests/run.php`.
   Every change must keep this green and all `examples/*.ldt` rendering.

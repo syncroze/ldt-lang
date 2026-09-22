@@ -233,7 +233,7 @@ final class Expr
     {
         $n = $env->sizeOf($this->data['segments']);
         if ($n === null) {
-            $ref = implode('.', $this->data['segments']);
+            $ref = Environment::pathToString($this->data['segments']);
             throw new \RuntimeException("cannot count @$ref: not an array");
         }
         return (string) $n;

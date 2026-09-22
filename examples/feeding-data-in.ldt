@@ -35,6 +35,13 @@ before override : [= @user.name]
 [set user.name = Override]
 after override  : [= @user.name]
 
+[# --- seeded keys that aren't plain names: use a quoted segment ---------- #]
+webhook topic   : [= @headers."x-shopify-topic"]
+request id      : [= @headers."x-request-id"]
+[# (a bare @headers.x-shopify-topic would be x − shopify − topic inside [= ];
+   see quoted-keys.ldt — and --set 'headers."x-request-id"=abc' seeds one
+   from the CLI) #]
+
 [# --- --set builds a nested path from a dotted key, same as [set] --------
    bin/ldt --set user.name=Ada --set user.email=ada@ldt.dev examples/feeding-data-in.ldt
    would seed user.name/user.email directly; the flags themselves can't be

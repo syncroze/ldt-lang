@@ -4,7 +4,7 @@ Roadmap and decisions for ldt-lang. The core language (assignment,
 interpolation, `@(expr)`, conditionals, loops, comments, escaping, trimming) is
 complete; this tracks what's planned on top of it.
 
-Last updated: 2026-07-05.
+Last updated: 2026-09-22.
 
 ---
 
@@ -42,6 +42,20 @@ Last updated: 2026-07-05.
   default`. `or` fallback kept alongside the `default` filter; both satisfy
   `--strict`. Arrays flow through the chain but the final result must be a
   scalar.
+
+### 24. Quoted path segments — `@headers."x-shopify-topic"` ✅
+- A `"…"` segment after the first addresses any key that isn't a plain name
+  (dashes, spaces, dots). Accepted everywhere a path is read or written:
+  `[= ]`, `[if]`, `[for]` (iterable and range bounds), `[set]` (both forms,
+  append included), `[unset]`, `default:` args, and CLI `--set`.
+- Purely additive — `@a."b"` was a hard error before. `-` stays subtraction
+  inside `[= ]` (`@n-1` unchanged); `@a."-1"` gives negative indexes a
+  spelling usable there.
+- Single grammar in `Environment::segmentsOf` (a scanner now, not a regex);
+  `Environment::quotedSegmentEnd` shared by the three raw-text scanners;
+  `Environment::pathToString` re-quotes paths in error messages.
+- 62 new tests (398 → 460), `examples/quoted-keys.ldt`, docs §2/§4/§9, Prism
+  + TextMate grammars. Rejected alternatives in HISTORY.md.
 
 ### 23. The `[= expr]` emit redesign — `@` reads, writes bare, one emit form ✅
 - `@{path}` and `@(expr)` replaced by the single bracket-family emit tag

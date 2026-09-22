@@ -1,0 +1,68 @@
+[# ===================================================================
+   ldt-lang — quoted path segments: reaching keys that are not plain
+   names. A dot-path segment is normally a bare name or an integer
+   index; anything else (a dash, a space, a colon, even a dot) is
+   written as a "quoted" segment after the dot:
+
+     @headers."x-shopify-topic"     [set cfg."app.name" = Shop]
+
+   The first segment is always a bare name. Inside the quotes the usual
+   escapes apply (\" and \\). A quoted segment is keyed exactly like a
+   bare one, so "01" is still the integer index 1.
+
+   Self-contained — run with:
+     php bin/ldt examples/quoted-keys.ldt
+   =================================================================== #]
+
+[# --- write, then read, a dashed key ------------------------------------- #]
+[set headers."x-shopify-topic" = orders/create]
+[set headers."x-request-id" = req-42]
+[set headers.host = shop.example]
+topic      : [= @headers."x-shopify-topic"]
+request id : [= @headers."x-request-id"]
+host       : [= @headers.host]                    bare segments mix freely
+
+[# --- the quoted segment works in every construct ------------------------ #]
+[if @headers."x-shopify-topic" == "orders/create"]
+in \[if]    : it is an order
+[/if]
+defined    : [= defined @headers."x-request-id"]
+fallback   : [= @headers."x-missing" | default: @headers."x-request-id"]
+filtered   : [= @headers."x-shopify-topic" | upper]
+iterated   :[for k, v in @headers] [= @k]=[= @v][/for]
+
+[# --- keys with spaces, colons and dots ---------------------------------- #]
+[set cfg."app.name" = Shop]
+[set cfg."Content Type: json" = yes]
+app.name   : [= @cfg."app.name"]                  a key that contains a dot
+odd key    : [= @cfg."Content Type: json"]
+
+[# --- deeper paths, append and unset after a quoted segment --------------- #]
+[set meta."rate-limits".max = 3]
+[set meta."rate-limits".hits. = a]
+[set meta."rate-limits".hits. = b]
+max        : [= @meta."rate-limits".max]
+hits       : [= @meta."rate-limits".hits | join: ", "]
+[unset headers."x-request-id"]
+after unset: [= defined @headers."x-request-id"]
+
+[# --- why quotes: inside [= ] a bare dash is subtraction ------------------ #]
+[set n = 5]
+n-1        : [= @n-1]                             still 5 − 1 = 4
+[# so [= @headers.x-shopify-topic] would be x − shopify − topic (an error);
+   the quoted spelling above is the fix. The same trick gives a negative
+   index a spelling usable inside [= ]: #]
+[set a."-1" = neg]
+a."-1"     : [= @a."-1"]                          equals \[set a.-1 = …]
+
+[# --- escapes inside a quoted segment ------------------------------------ #]
+[set h."say \"hi\"" = quoted]
+escaped    : [= @h."say \"hi\""]
+
+[# --- one wrinkle: a ] inside the quotes within a NESTED self-closing
+   [set] value must be written \], since the outer scan pairs [ ] before the
+   inner tag is parsed. Anywhere else ] = | , are fine inside the quotes. #]
+[set h."x]y" = bracket]
+direct     : [= @h."x]y"]
+[set nested = [= @h."x\]y"]]
+nested     : [= @nested]

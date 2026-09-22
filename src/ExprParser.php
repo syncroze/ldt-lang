@@ -237,7 +237,9 @@ final class ExprParser
     }
 
     /**
-     * Read a bare `@path` reference (ends at the next boundary character).
+     * Read a bare `@path` reference (ends at the next boundary character). A
+     * `."…"` quoted segment is consumed whole, so its contents — boundary
+     * characters included — belong to the path, not the expression.
      *
      * @return array{0: array{type:string,value:mixed,start:int,end:int}, 1: int}
      */
@@ -247,8 +249,24 @@ final class ExprParser
         $p = $start + 1; // past '@'
 
         $raw = '';
-        while ($p < $len && !$this->isBoundary($this->source[$p])) {
-            $raw .= $this->source[$p];
+        while ($p < $len) {
+            $c = $this->source[$p];
+            if ($c === '"' && $raw === '') {
+                $this->fail($start, 'a reference starts with a bare name; only later segments may be "quoted"');
+            }
+            if ($c === '"' && str_ends_with($raw, '.')) {
+                $end = Environment::quotedSegmentEnd($this->source, $p);
+                if ($end === null) {
+                    $this->fail($start, "unterminated quoted segment in reference '@$raw\"'");
+                }
+                $raw .= substr($this->source, $p, $end - $p);
+                $p = $end;
+                continue;
+            }
+            if ($this->isBoundary($c)) {
+                break;
+            }
+            $raw .= $c;
             $p++;
         }
 
@@ -488,7 +506,7 @@ final class ExprParser
     private function tokenText(array $tok): string
     {
         return $tok['type'] === 'ref'
-            ? '@' . implode('.', $tok['value'])
+            ? '@' . Environment::pathToString($tok['value'])
             : (string) $tok['value'];
     }
 

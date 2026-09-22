@@ -146,6 +146,8 @@ final class ForHeader
 
     /**
      * Read a bare `@path` reference and return its validated dot-path segments.
+     * A `."…"` quoted segment is consumed whole (its contents are part of the
+     * path, whatever they are).
      *
      * @return array<int, string>
      */
@@ -154,9 +156,22 @@ final class ForHeader
         $start = $this->pos;
         $this->pos++; // past '@'
 
-        $n = strspn($this->source, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-', $this->pos);
-        $raw = substr($this->source, $this->pos, $n);
-        $this->pos += $n;
+        $raw = '';
+        while (true) {
+            $n = strspn($this->source, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-', $this->pos);
+            $raw .= substr($this->source, $this->pos, $n);
+            $this->pos += $n;
+
+            if (!str_ends_with($raw, '.') || $this->peek() !== '"') {
+                break;
+            }
+            $end = Environment::quotedSegmentEnd($this->source, $this->pos);
+            if ($end === null) {
+                $this->fail($start, "unterminated quoted segment in reference '@$raw\"'");
+            }
+            $raw .= substr($this->source, $this->pos, $end - $this->pos);
+            $this->pos = $end;
+        }
 
         return Environment::segmentsOf($raw)
             ?? $this->fail($start, "invalid reference: '@$raw'");

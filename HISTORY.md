@@ -569,14 +569,73 @@ every claim checked against execution, gaps locked with tests (390 → 398):
   `docs/assets/ldt-theme.css` entries; **bin/ldt** read end-to-end (clean,
   EMIT token dump included).
 
+## Quoted path segments — `@headers."x-shopify-topic"` (2026-09-22)
+
+Prompted by a real integration question: can a template read a key with a
+dash (HTTP headers, webhook payloads)? It could not — `segmentsOf` was one
+regex (`ident(.ident|.-?digits)*`), so dashed keys were seedable and
+iterable with `[for]` but unaddressable: `[if @h.x-a]` → invalid reference,
+`[= @h.x-a]` → parsed as `x − a`, `[set h.x-a = 1]` → invalid path.
+
+**Chosen: a quoted segment.** `."…"` anywhere after the first segment
+addresses any key — dashes, spaces, colons, dots. `@a."b"` was a hard syntax
+error before, so the change is purely additive; no valid template changes
+meaning, and `-` keeps meaning subtraction inside `[= ]` (`@n-1` still
+renders `4`).
+
+- Grammar: `path := ident ( '.' segment )* ( '.' )?`,
+  `segment := ident | '-'? digits | '"' chars '"'`. Quotes cook the universal
+  escape (`\"`, `\\`; `\` before a letter/digit stays literal — the same
+  rule as `ExprParser::readQuoted`). Empty `""` is an error.
+- Defaults settled with the user: the **root stays bare** (`@"x-a"` is a
+  pointed error — roots are names); a quoted numeric segment is **keyed like
+  a bare one** (`"01"` is still the int index 1 — no "was quoted" marker, so
+  the seeded-`'01'`-is-unreachable note in §2/§9 still holds); **append works
+  after a quoted segment** (`[set a."b-c". = x]`).
+- Implementation: `Environment::segmentsOf` became a small scanner (still the
+  single grammar, still what `bin/ldt --set` calls — `--set 'h."x-a"=1'` works
+  with no CLI change). New `Environment::quotedSegmentEnd` is shared by the
+  three raw-text scanners (`Lexer::readPathText` for `[set]`/`[unset]`,
+  `ExprParser::readRef`, `ForHeader::readRef`) so a `]`, `=`, `|` or `,`
+  inside the quotes belongs to the path, not the tag. New
+  `Environment::pathToString` re-quotes odd segments in every message that
+  prints a path (strict `undefined reference @h."x-a"`, `cannot descend into
+  scalar … (path 'h."x-a".z')`, `cannot iterate @…`).
+- Known wrinkle (documented in §2): inside a *nested* self-closing `[set … =
+  …]` value the outer bracket-pair scan runs before the inner tag is parsed,
+  so a `]` inside a quoted segment there must be written `\]`.
+- Side effect worth noting: `@a."-1"` gives negative indexes a spelling that
+  works inside `[= ]`, closing the "reach such a slot by iteration" gap.
+- 62 new tests (398 → 460): every construct, escapes, `]`/`=`/`|` inside
+  segments, arithmetic next to a quoted ref, the `@n-1`/hyphenated-literal/
+  `@a.-1` regressions, every error message, and the shared validator direct.
+  `examples/quoted-keys.ldt`; docs §2/§4/§9; Prism + TextMate grammars.
+
+**Rejected on the way:**
+- **Bare dash in segments** (`@h.x-shopify-topic`, Liquid-style) — would have
+  to stop `-` meaning subtraction inside `[= ]`: `@n-1` becomes the key
+  `n-1` (silently empty in lax mode), and `@a.-1` vs `@a.x-1` become
+  ambiguous. Dashes only; a space or colon in a key would still fail.
+- **Escaped dash** (`@h.x\-shopify\-topic`) — reverses the recorded "no `\`
+  escapes inside expressions, use quoted strings" rule; one escape per dash;
+  dashes only.
+- **Lookup operator** (`[= key "x-a" of @h]`) — read-only (no `[set]`,
+  `[unset]`, `[for … in]`, no chaining deeper) and it smuggles in dynamic
+  key lookup (`key @name of @map`), a feature the language has deliberately
+  never had; decide that separately if ever.
+- **Subscripts** (`@h["x-a"]`) — `[`/`]` are the construct delimiters and
+  `[set … = ]` counts bracket pairs; subscripts would fight the core rule.
+- **Normalizing in the host** (`x-a` → `x_a`) remains valid and needs no
+  language change; quoted segments simply remove the need for it.
+
 ## Where things stand
 
 `TASKS.md` tracks the roadmap: DONE = feed-data, loop-metadata, default,
 count, filters, substring-ops, optimization-pass, quoted-set-values, unified-falsy, unset, uniform-set-closer, mini-templates+or-removal+arity+context-keywords,
-and the `[= expr]` emit redesign. NOT
+the `[= expr]` emit redesign, and quoted path segments. NOT
 PLANNED = includes, macros, switch/case, custom filters, bool/null literals,
 regex, ternary. DEFERRED = nothing (the audit surface map in TASKS.md is
-fully ticked). 398 tests in `tests/run.php`; examples cover every feature;
+fully ticked). 460 tests in `tests/run.php`; examples cover every feature;
 the GitHub Pages site (`docs/index.html`, live at
 https://ldt-lang.syncroze.com/ — Pages source is the `docs/` folder)
 is the single reference doc —

@@ -1,12 +1,15 @@
 /* Prism.js grammar for ldt-lang (.ldt files). Not the interpreter's grammar —
    a lightweight approximation good enough for readable syntax highlighting. */
 (function () {
-	var STRING = /"(?:\\.|[^"\\])*"/;
+	// a quote right after a '.' opens a quoted path segment, not a string
+	var STRING = /(?<!\.)"(?:\\.|[^"\\])*"/;
 	var EXPR_KEYWORD = /\b(?:and|or|not|in|to|by|defined|count|contains|starts with|ends with)\b/;
 	var FILTER_NAME = /(?<=\|\s*)[a-z]\w*/;
 	var OPERATOR = /==|!=|<=|>=|[<>=+\-*/%|]/;
+	// a dot-path: bare segments, plus quoted ones (@headers."x-shopify-topic")
+	var PATH = '[A-Za-z_]\\w*(?:\\.(?:"(?:\\\\.|[^"\\\\])*"|-?\\w+))*';
 	var VARIABLE = {
-		pattern: /@[A-Za-z_][\w.]*/,
+		pattern: new RegExp('@' + PATH),
 		inside: { 'sigil': /^@/ },
 	};
 	var NUMBER = /\b\d+\b/;
@@ -21,8 +24,9 @@
 			'function': FILTER_NAME,
 			// the leading '=' is the tag's own keyword (before 'operator' runs)
 			'keyword': [/^=/, EXPR_KEYWORD],
-			'operator': OPERATOR,
+			// before 'operator': a quoted segment may hold a '-' (@h."x-a")
 			'variable': VARIABLE,
+			'operator': OPERATOR,
 			'number': NUMBER,
 			'inner-punctuation': {
 				pattern: /[():,]/,
@@ -52,18 +56,18 @@
 				'punctuation': [/^\[\/?/, /\]$/],
 				'declaration': [
 					{
-						pattern: /^set\s+[A-Za-z_][\w.]*/,
+						pattern: new RegExp('^set\\s+' + PATH + '\\.?'),
 						inside: {
 							'keyword': /^set/,
-							'variable': /[A-Za-z_][\w.]*/,
+							'variable': new RegExp(PATH + '\\.?'),
 						},
 					},
 					{
-						pattern: /^unset\s+[A-Za-z_][\w.]*(?:\s*,\s*[A-Za-z_][\w.]*)*/,
+						pattern: new RegExp('^unset\\s+' + PATH + '(?:\\s*,\\s*' + PATH + ')*'),
 						inside: {
 							'keyword': /^unset/,
 							'punctuation': /,/,
-							'variable': /[A-Za-z_][\w.]*/,
+							'variable': new RegExp(PATH),
 						},
 					},
 					{
@@ -87,8 +91,8 @@
 					pattern: /\\[^\r\n0-9A-Za-z]/,
 					alias: 'important',
 				},
+				'variable': VARIABLE, // before 'operator', as in emit
 				'operator': OPERATOR,
-				'variable': VARIABLE,
 				'number': NUMBER,
 				'inner-punctuation': {
 					pattern: /[():,]/,

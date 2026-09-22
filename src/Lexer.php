@@ -179,7 +179,7 @@ final class Lexer
         $this->consume('[set');
         $this->skipAllWs();
 
-        $rawPath = $this->readPathText();
+        $rawPath = $this->readPathText($startLine, $startCol);
         if ($rawPath === '') {
             $this->failAt($startLine, $startCol, 'expected a variable path after [set');
         }
@@ -344,7 +344,7 @@ final class Lexer
 
         $paths = [];
         while (true) {
-            $raw = $this->readPathText();
+            $raw = $this->readPathText($startLine, $startCol);
             if ($raw === '') {
                 $this->failAt($startLine, $startCol, 'expected a variable path in [unset');
             }
@@ -542,16 +542,30 @@ final class Lexer
 
     // --- low-level scanning helpers -------------------------------------
 
-    /** Read the run of path characters at the cursor (no consumption beyond). */
-    private function readPathText(): string
+    /**
+     * Read the run of path text at the cursor (no consumption beyond): bare
+     * path characters, plus any `."…"` quoted segments — those are consumed
+     * whole here so a `=`, `]` or `[/set]` inside the quotes can't be taken
+     * for the tag's own syntax. Validation happens in {@see parsePath}.
+     */
+    private function readPathText(int $line, int $col): string
     {
-        $n = strspn($this->source, self::PATH_CHARSET, $this->pos);
-        if ($n === 0) {
-            return '';
+        $out = '';
+        while (true) {
+            $n = strspn($this->source, self::PATH_CHARSET, $this->pos);
+            $out .= substr($this->source, $this->pos, $n);
+            $this->advanceBy($n);
+
+            if (!str_ends_with($out, '.') || $this->peek() !== '"') {
+                return $out;
+            }
+            $end = Environment::quotedSegmentEnd($this->source, $this->pos);
+            if ($end === null) {
+                $this->failAt($line, $col, "unterminated quoted segment in path '$out\"'");
+            }
+            $out .= substr($this->source, $this->pos, $end - $this->pos);
+            $this->advanceBy($end - $this->pos);
         }
-        $out = substr($this->source, $this->pos, $n);
-        $this->advanceBy($n);
-        return $out;
     }
 
     /**

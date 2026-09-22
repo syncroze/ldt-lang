@@ -247,17 +247,125 @@ final class Environment
     }
 
     /**
-     * Split and validate a dot-path (`name`, `user.first`, `items.0`), or null
-     * when malformed. The path syntax lives here, next to the key semantics,
-     * so every parser (Lexer, ExprParser, ForHeader) validates identically.
+     * Split and validate a dot-path (`name`, `user.first`, `items.0`,
+     * `headers."x-shopify-topic"`), or null when malformed. The path syntax
+     * lives here, next to the key semantics, so every parser (Lexer,
+     * ExprParser, ForHeader) and the CLI validate identically.
+     *
+     * A segment is a bare name, a signed integer index, or — after the first
+     * segment — a `"quoted"` key, which may hold any character (dashes,
+     * spaces, dots). Quoted keys cook the universal escape (`\"`, `\\`; a
+     * `\` before a letter/digit stays literal) and are otherwise keyed
+     * exactly like bare ones (`"01"` is still the int index 1).
      *
      * @return array<int, string>|null
      */
     public static function segmentsOf(string $raw): ?array
     {
-        if ($raw === '' || preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\.(?:[A-Za-z_][A-Za-z0-9_]*|-?\d+))*$/', $raw) !== 1) {
+        $len = strlen($raw);
+        if ($len === 0) {
             return null;
         }
-        return explode('.', $raw);
+
+        $segments = [];
+        $p = 0;
+        while (true) {
+            if ($p < $len && $raw[$p] === '"') {
+                if ($segments === []) {
+                    return null; // the root is always a bare name
+                }
+                $end = self::quotedSegmentEnd($raw, $p);
+                if ($end === null) {
+                    return null;
+                }
+                $seg = self::cookQuoted(substr($raw, $p + 1, $end - $p - 2));
+                if ($seg === '') {
+                    return null;
+                }
+                $p = $end;
+            } else {
+                $n = strspn($raw, 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-', $p);
+                $seg = substr($raw, $p, $n);
+                $bare = $segments === []
+                    ? '/^[A-Za-z_][A-Za-z0-9_]*$/'
+                    : '/^(?:[A-Za-z_][A-Za-z0-9_]*|-?\d+)$/';
+                if (preg_match($bare, $seg) !== 1) {
+                    return null;
+                }
+                $p += $n;
+            }
+            $segments[] = $seg;
+
+            if ($p >= $len) {
+                return $segments;
+            }
+            if ($raw[$p] !== '.') {
+                return null; // e.g. text glued after a closing quote
+            }
+            $p++;
+        }
+    }
+
+    /**
+     * Byte offset just past the closing quote of the `"…"` segment that opens
+     * at $pos, or null when it never closes. A `\` skips the next character,
+     * so `\"` does not close. Shared by the raw-text path scanners so they
+     * all agree on where a path with quoted segments ends.
+     */
+    public static function quotedSegmentEnd(string $src, int $pos): ?int
+    {
+        $len = strlen($src);
+        $p = $pos + 1; // past the opening quote
+        while ($p < $len) {
+            $c = $src[$p];
+            if ($c === '"') {
+                return $p + 1;
+            }
+            $p += ($c === '\\' && $p + 1 < $len) ? 2 : 1;
+        }
+        return null;
+    }
+
+    /**
+     * Render segments back into path syntax for messages: bare where the
+     * segment is a valid bare name/index, `"quoted"` (with `\` and `"`
+     * escaped) otherwise — so `@headers."x-shopify-topic"` reads as written.
+     *
+     * @param array<int, string> $segments
+     */
+    public static function pathToString(array $segments): string
+    {
+        $out = [];
+        foreach ($segments as $i => $seg) {
+            $seg = (string) $seg;
+            $bare = $i === 0
+                ? '/^[A-Za-z_][A-Za-z0-9_]*$/'
+                : '/^(?:[A-Za-z_][A-Za-z0-9_]*|-?\d+)$/';
+            $out[] = preg_match($bare, $seg) === 1
+                ? $seg
+                : '"' . str_replace(['\\', '"'], ['\\\\', '\\"'], $seg) . '"';
+        }
+        return implode('.', $out);
+    }
+
+    /**
+     * Cook the escapes in a quoted segment's body — the same rule as every
+     * other quoted value: `\` before a non-alphanumeric character yields that
+     * character; before a letter, digit or end-of-line it stays literal.
+     */
+    private static function cookQuoted(string $body): string
+    {
+        $len = strlen($body);
+        $out = '';
+        for ($p = 0; $p < $len; $p++) {
+            $c = $body[$p];
+            if ($c === '\\' && $p + 1 < $len && !ctype_alnum($body[$p + 1])
+                && $body[$p + 1] !== "\n" && $body[$p + 1] !== "\r") {
+                $out .= $body[++$p];
+                continue;
+            }
+            $out .= $c;
+        }
+        return $out;
     }
 }
