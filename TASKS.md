@@ -4,7 +4,7 @@ Roadmap and decisions for ldt-lang. The core language (assignment,
 interpolation, `@(expr)`, conditionals, loops, comments, escaping, trimming) is
 complete; this tracks what's planned on top of it.
 
-Last updated: 2026-09-22.
+Last updated: 2026-10-31.
 
 ---
 
@@ -42,6 +42,19 @@ Last updated: 2026-09-22.
   default`. `or` fallback kept alongside the `default` filter; both satisfy
   `--strict`. Arrays flow through the chain but the final result must be a
   scalar.
+
+### 26. Decimal arithmetic in `[= ]` + `floor` / `ceil` filters ✅
+- `+ - * / %` and unary minus accept any Number (`0.15`, `-2.5`, `007`);
+  `/` is true division; `%` on decimals follows the dividend's sign.
+  Results are canonical: ≤ 10 decimals (half up), no exponent / trailing
+  zeros, `-0` → `0`, whole results spelled as integers (`0.15 * 100` → `15`).
+  Integer operands compute exactly; decimals via floats (no bcmath — zero
+  dependencies kept; the formatter in `Expr::canonical()` is the contract).
+- `floor` / `ceil` filters give back a whole quotient
+  (`[= @total / @per_page | ceil]`). Range bounds stay integer by design.
+- Breaking in 1.3: `[= 10 / 3]` is `3.3333333333`, not `3` (`| floor`
+  restores it); error text is "numeric operands". 36 new tests (477 → 513),
+  docs §4/§5/§13, `examples/expressions.ldt`, `examples/filters.ldt`.
 
 ### 25. `json` filter — JSON-safe output of values ✅
 - `[= @v | json]` emits a complete JSON string value, quotes included

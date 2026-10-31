@@ -31,6 +31,8 @@ last  : [= @items | last]
 [set pi = 3.14159][set temp = -7]
 round : [= @pi | round: 2]
 abs   : [= @temp | abs]
+floor : [= @pi | floor]
+ceil  : [= @pi | ceil]
 
 [# --- html escaping -------------------------------------------------------- #]
 [set snippet = <b>bold</b> & "quotes"]

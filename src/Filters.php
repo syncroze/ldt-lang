@@ -75,7 +75,8 @@ final class Filters
     private const ARITY = [
         'upper' => [0, 0], 'lower' => [0, 0], 'trim' => [0, 0],
         'capitalize' => [0, 0], 'first' => [0, 0], 'last' => [0, 0],
-        'abs' => [0, 0], 'html' => [0, 0], 'json' => [0, 0],
+        'abs' => [0, 0], 'floor' => [0, 0], 'ceil' => [0, 0],
+        'html' => [0, 0], 'json' => [0, 0],
         'round' => [0, 1], 'join' => [0, 1],
         'truncate' => [1, 2],
         'default' => [1, 1],
@@ -103,6 +104,8 @@ final class Filters
             'last' => self::edge($name, $value, first: false),
             'round' => self::round(self::scalar($name, $value), $args),
             'abs' => (string) abs(self::numeric($name, self::scalar($name, $value))),
+            'floor' => Expr::canonical(floor(self::numeric($name, self::scalar($name, $value)))),
+            'ceil' => Expr::canonical(ceil(self::numeric($name, self::scalar($name, $value)))),
             'html' => htmlspecialchars(self::scalar($name, $value), ENT_QUOTES),
             'json' => self::json(self::scalar($name, $value)),
             default => throw new \RuntimeException("unknown filter '$name'"),

@@ -193,10 +193,13 @@ compares as a number : [= @id == 7]
 	<pre><code class="language-ldt">Subtotal: [= @price * @qty]
 precedence : [= 2 + 3 * 4]        → 14  (* / % bind tighter than + -)
 parens override it : [= (2 + 3) * 4]   → 20
-unary minus : [= -@a + 20]</code></pre>
+unary minus : [= -@a + 20]
+percent to fraction : [= @rate / 100]   → 0.15  (for @rate = 15)
+true division : [= 10 / 3]        → 3.3333333333
+whole results stay integers : [= 0.15 * 100]   → 15</code></pre>
 
 	<ul>
-	<li><strong>Integer arithmetic:</strong> <code>+  -  *  /  %</code> — <code>/</code> truncates toward zero; operands must be integers (a non-integer, or <code>/ 0</code> / <code>% 0</code>, is an error). A float <em>literal</em> like <code>5.0</code> is rejected the same way.</li>
+	<li><strong>Arithmetic:</strong> <code>+  -  *  /  %</code> work on Numbers, decimals included, and <code>/</code> is true division. The result is a canonical Number: at most <strong>ten decimal places</strong> (rounded half up at the tenth), no exponent, no trailing zeros, <code>-0</code> rendered <code>0</code> — so a whole result is spelled as an integer (<code>0.15 * 100</code> is <code>15</code>, never <code>15.0</code>). <code>%</code> on decimals follows the dividend's sign (<code>-5.5 % 2</code> → <code>-1.5</code>). A non-Number operand, or <code>/ 0</code> / <code>% 0</code> (<code>0.0</code> included), is an error. A Number needs digits on both sides of the dot: <code>.5</code>, <code>5.</code> and <code>1e3</code> are Strings (§1). Integer operands compute exactly; a decimal operand uses floating point, so beyond ~15 significant digits the last places are not exact. Because a value travels between tags as text, a result rounded at the tenth decimal in one <code>[= ]</code> enters the next tag already rounded — chain long decimal computations inside one tag, or <code>floor</code> / <code>ceil</code> / <code>round</code> (§5) at the end.</li>
 	<li><strong>Comparisons</strong> <code>== != &lt; &gt; &lt;= &gt;=</code> are type-aware: both operands numeric → numeric compare (<code>5 == 5.0</code>, <code>007 == 7</code>), otherwise lexicographic (<code>"apple" &lt; "banana"</code>).</li>
 	<li><code>defined @path</code> tests existence; <code>count @array</code> gives an array's length (undefined → <code>0</code>, a scalar → a loud error). Both are context-sensitive, not reserved words — they act as operators only when followed by a <code>@reference</code>.</li>
 	<li><strong>Boolean logic</strong> <code>and</code> / <code>or</code> / <code>not</code>, with <code>( )</code> grouping.</li>
@@ -240,6 +243,7 @@ unary minus : [= -@a + 20]</code></pre>
 	<tr><td><code>first</code> / <code>last</code></td><td>first / last element of an array</td></tr>
 	<tr><td><code>round [: n]</code></td><td>round to <code>n</code> decimals (default 0)</td></tr>
 	<tr><td><code>abs</code></td><td>absolute value</td></tr>
+	<tr><td><code>floor</code> / <code>ceil</code></td><td>round down / up to a whole Number (<code>[= @total / @per_page | ceil]</code> is a page count)</td></tr>
 	<tr><td><code>html</code></td><td>escape <code>&lt; &gt; &amp; " '</code> for HTML</td></tr>
 	<tr><td><code>json</code></td><td>a complete JSON string value, quotes included — <code>"</code> <code>\</code> and control characters escaped</td></tr>
 	<tr><td><code>default: value</code></td><td>fallback when the input is falsy (same rule as <code>[if]</code>)</td></tr>
@@ -401,7 +405,6 @@ ldt --json data.json --set site=X f.ldt  # later flags win</code></pre>
 	<tr><td>boolean / null literals (<code>true</code>/<code>false</code>/<code>null</code> keywords)</td><td>a comparison result textualizes as <code>1</code>/<code>0</code>; undefined already <em>is</em> the null</td></tr>
 	<tr><td>custom / host-registered filters</td><td>the fixed built-in set (§5); pre/post-process in the host app</td></tr>
 	<tr><td><code>[include]</code> / <code>[macro]</code> (template composition)</td><td>render sub-pieces separately in PHP and pass the strings in as data</td></tr>
-	<tr><td>float arithmetic in <code>[= ]</code></td><td>keep math integer; the <code>round</code> filter formats decimals</td></tr>
 	<tr><td>bare <code>@name</code> interpolating in body text</td><td><code>[= @name]</code> — otherwise every email/@-mention would mangle</td></tr>
 	<tr><td>filters in <code>[if]</code>/<code>[for]</code> conditions</td><td>filter into a <code>[set]</code> first, or use <code>[= ]</code></td></tr>
 	<tr><td>rendering an array directly as text</td><td><code>| join: ", "</code>, or iterate</td></tr>
@@ -453,7 +456,7 @@ echo Ldt::renderFile('examples/assignment.ldt');</code></pre>
 	<section id="status">
 	<h2>Status</h2>
 
-	<p>Assignment, the <code>[= expr]</code> emit tag (plain-reference interpolation, integer arithmetic + comparison/logic, <code>| default:</code> fallbacks and the full filter set), nested dot-paths, comments, conditionals, loops (arrays + <code>to</code>/<code>by</code> ranges, <code>break</code>/<code>continue</code>, nested iteration, <code>@loop.*</code> metadata), an external data context (PHP array / CLI <code>--set</code> / <code>--json</code>), whitespace trimming, and <code>\</code> escaping are implemented.</p>
+	<p>Assignment, the <code>[= expr]</code> emit tag (plain-reference interpolation, decimal arithmetic + comparison/logic, <code>| default:</code> fallbacks and the full filter set), nested dot-paths, comments, conditionals, loops (arrays + <code>to</code>/<code>by</code> ranges, <code>break</code>/<code>continue</code>, nested iteration, <code>@loop.*</code> metadata), an external data context (PHP array / CLI <code>--set</code> / <code>--json</code>), whitespace trimming, and <code>\</code> escaping are implemented.</p>
 
 	<p>Planned work and deliberately-excluded features are tracked in <a href="https://github.com/syncroze/ldt-lang/blob/master/TASKS.md">TASKS.md</a>; the full design/decision log, including every rejected alternative, is in <a href="https://github.com/syncroze/ldt-lang/blob/master/HISTORY.md">HISTORY.md</a>.</p>
 	</section>

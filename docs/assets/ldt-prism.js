@@ -12,7 +12,7 @@
 		pattern: new RegExp('@' + PATH),
 		inside: { 'sigil': /^@/ },
 	};
-	var NUMBER = /\b\d+\b/;
+	var NUMBER = /\b\d+(?:\.\d+)?\b/;
 
 	var emit = {
 		// [= expr] — a quoted string may hold a literal ]

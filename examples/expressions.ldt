@@ -4,14 +4,25 @@
    [if]/[elseif] conditions, and [for … in a to b] range bounds.
    =================================================================== #]
 
-[# --- integer arithmetic: + - * / % ; / truncates toward zero -------- #]
+[# --- arithmetic: + - * / % on Numbers, decimals included --------------- #]
 [set a = 17][set b = 5]
 add / sub / mul     : [= @a + @b] / [= @a - @b] / [= @a * @b]
-div truncates       : [= @a / @b]
+true division       : [= @a / @b]
 modulo              : [= @a % @b]
 precedence          : [= 2 + 3 * 4]
 parens override it  : [= (2 + 3) * 4]
 unary minus         : [= -@a + 20]
+
+[# results are canonical Numbers: at most ten decimals, no trailing zeros,
+   a whole result is spelled as an integer #]
+[set rate = 15]
+percent to fraction : [= @rate / 100]
+and back, no noise  : [= @rate / 100 * 100]
+ten decimals max    : [= 10 / 3]
+decimal add         : [= 0.1 + 0.2]
+decimal modulo      : [= 5.5 % 2]
+whole quotient      : [= @a / @b | floor]
+page count          : [= 31 / 10 | ceil]
 
 [# --- comparisons: numeric if both operands are Numbers, else lexicographic #]
 [set x = 5][set y = "5.0"]

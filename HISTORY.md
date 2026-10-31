@@ -675,14 +675,76 @@ JSON string literal and escapes every `[= ]` there automatically):
 would fix every existing template without edits and needs no context
 tracking. Offered as a follow-up; the user chose the explicit filter.
 
+## Decimal arithmetic in `[= ]`, `floor` / `ceil` filters (2026-10-31)
+
+Prompted by Syncroze task 4.20 (Shopify discounts over GraphQL): Shopify
+takes a percentage as a fraction (`0.15` = 15 %), WooCommerce as `15`, and a
+template could not convert because arithmetic was integer-only
+(`[= 15 / 100]` rendered `0`).
+
+**Chosen: all five operators `+ - * / %` (and unary minus) accept any
+Number**, exactly as `isNumeric()` already defines it (`[+-]?\d+(\.\d+)?`),
+and `/` is true division. The result is a canonical Number — the output
+contract, whatever the engine:
+
+- no exponent, at most **ten decimal places** rounded half up at the tenth,
+  no trailing zeros or trailing dot, `-0` folded to `0`; a whole result is
+  spelled as an integer (`[= 0.15 * 100]` → `15`, never `15.0` or
+  `15.000000000000002`).
+- Integer operands stay on exact PHP integer math for `+ - * %` (so
+  `9007199254740993 * 1` is exact, as before); `/` and any decimal operand
+  take the float path. A huge integer text (beyond `PHP_INT_MAX`) now
+  degrades to float precision instead of the old silent `(int)` saturation;
+  a non-finite result is a loud "out of range" error.
+- `%` on decimals uses `fmod`, sign of the dividend like PHP's `%`
+  (`-5.5 % 2` → `-1.5`). Division / modulo by zero still error, `0.0`
+  counts as zero.
+- Error text is uniform: "arithmetic requires numeric operands, got '…'".
+  (Was "integer operands".)
+- **`floor` / `ceil` filters** (zero-arg, numeric input, canonical output)
+  replace the capability that truncating `/` provided: a page count is
+  `[= @total / @per_page | ceil]` instead of the add-and-truncate trick.
+- 36 new tests (477 → 513); docs §4 rewritten, §5 rows, the §13 "float
+  arithmetic" row removed; `examples/expressions.ldt`, `examples/filters.ldt`;
+  Prism `NUMBER` matches decimals.
+
+**Engine: PHP floats + `number_format($x, 10, '.', '')`, not bcmath.** The
+package promises zero runtime dependencies and `ext-bcmath` is not always
+compiled in. The formatting rule is the contract, not the engine, and it
+lives in one function (`Expr::canonical()`), so bcmath can be swapped in
+later without changing a single rendered result for ≤ 15 significant digits.
+
+**Known, accepted:**
+
+- `/` changes meaning in a minor version: a template that relied on
+  `[= 10 / 3]` giving `3` now gets `3.3333333333`; `| floor` restores it.
+- Values travel between tags as text, so a result rounded at the tenth
+  decimal in one `[= ]` enters the next tag already rounded; a long chain
+  across tags can drift in the last place where PHP would not. Keep long
+  decimal computations inside one tag.
+- Ten fixed decimal places: a result below `0.00000000005` renders `0`;
+  very large float results print every digit although only ~15 are exact.
+- Arithmetic canonicalizes while plain emit preserves text form:
+  `[set x = 1.50][= @x]` → `1.50`, `[= @x + 0]` → `1.5`.
+
+**Rejected: decimal range bounds** (`[for n in 0 to 1 by 0.25]`). Ranges are
+iteration, not arithmetic, with their own §7 rule; accumulated float steps
+make termination unreliable (`by 0.1` ten times is not `1.0`), and
+`@loop.count` / the lazy-range size assume an exact integer count. Loop over
+integers and divide in the body instead.
+
+**Unchanged:** the Number definition (`.5`, `5.` and `1e3` stay Strings),
+the `round` filter, precedence, comparisons, the negative-index trap.
+
 ## Where things stand
 
 `TASKS.md` tracks the roadmap: DONE = feed-data, loop-metadata, default,
 count, filters, substring-ops, optimization-pass, quoted-set-values, unified-falsy, unset, uniform-set-closer, mini-templates+or-removal+arity+context-keywords,
-the `[= expr]` emit redesign, quoted path segments, and the `json` filter. NOT
+the `[= expr]` emit redesign, quoted path segments, the `json` filter, and
+decimal arithmetic + `floor`/`ceil`. NOT
 PLANNED = includes, macros, switch/case, custom filters, bool/null literals,
 regex, ternary. DEFERRED = nothing (the audit surface map in TASKS.md is
-fully ticked). 477 tests in `tests/run.php`; examples cover every feature;
+fully ticked). 513 tests in `tests/run.php`; examples cover every feature;
 the GitHub Pages site (`docs/index.html`, live at
 https://ldt-lang.syncroze.com/ — Pages source is the `docs/` folder)
 is the single reference doc —

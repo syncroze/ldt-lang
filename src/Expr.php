@@ -26,7 +26,7 @@ final class Expr
     public const NOT = 'not';         // not <expr>
     public const LOGICAL = 'logical'; // <expr> and/or <expr>
     public const COMPARE = 'compare'; // <expr> ==|!=|<|>|<=|>= <expr>
-    public const ARITH = 'arith';     // <expr> +|-|*|/|% <expr>  (integers)
+    public const ARITH = 'arith';     // <expr> +|-|*|/|% <expr>  (Numbers)
     public const NEG = 'neg';         // - <expr>                 (unary minus)
     public const FILTERED = 'filtered'; // <expr> | filter: args...  (pipe chain)
 
@@ -103,7 +103,7 @@ final class Expr
             self::LOGICAL => $this->evalLogical($env),
             self::COMPARE => $this->evalCompare($env),
             self::ARITH => $this->evalArith($env),
-            self::NEG => (string) (-$this->intOf($this->data['operand']->evaluate($env))),
+            self::NEG => self::canonical(-$this->numOf($this->data['operand']->evaluate($env))),
             self::FILTERED => $this->evalFiltered($env),
             default => false,
         };
@@ -224,11 +224,6 @@ final class Expr
         };
     }
 
-    /**
-     * Integer arithmetic. Both operands must be integers; a non-integer (or
-     * division/modulo by zero) throws — the {@see Interpreter} catches it and
-     * re-raises a {@see SyntaxError} with the `[= ...]` coordinates.
-     */
     private function evalCount(Environment $env): string
     {
         $n = $env->sizeOf($this->data['segments']);
@@ -239,28 +234,80 @@ final class Expr
         return (string) $n;
     }
 
+    /**
+     * Arithmetic on Numbers. Both operands must be numeric (`[+-]?\d+(\.\d+)?`);
+     * a non-Number, or division/modulo by zero, throws — the {@see Interpreter}
+     * catches it and re-raises a {@see SyntaxError} with the `[= ...]`
+     * coordinates. Integer operands stay on exact integer math for
+     * `+ - * %` (PHP promotes an overflow to float, which {@see canonical()}
+     * then formats); `/` and any decimal operand take the float path.
+     */
     private function evalArith(Environment $env): string
     {
-        $a = $this->intOf($this->data['left']->evaluate($env));
-        $b = $this->intOf($this->data['right']->evaluate($env));
+        $a = $this->numOf($this->data['left']->evaluate($env));
+        $b = $this->numOf($this->data['right']->evaluate($env));
+        $op = $this->data['op'];
 
-        return match ($this->data['op']) {
-            '+' => (string) ($a + $b),
-            '-' => (string) ($a - $b),
-            '*' => (string) ($a * $b),
-            '/' => $b === 0 ? throw new \RuntimeException('division by zero') : (string) intdiv($a, $b),
-            '%' => $b === 0 ? throw new \RuntimeException('modulo by zero') : (string) ($a % $b),
-            default => '',
-        };
+        if (($op === '/' || $op === '%') && (float) $b === 0.0) {
+            throw new \RuntimeException($op === '/' ? 'division by zero' : 'modulo by zero');
+        }
+
+        if (is_int($a) && is_int($b) && $op !== '/') {
+            return self::canonical(match ($op) {
+                '+' => $a + $b,
+                '-' => $a - $b,
+                '*' => $a * $b,
+                '%' => $b === -1 ? 0 : $a % $b, // PHP_INT_MIN % -1 would throw
+                default => 0,
+            });
+        }
+
+        $a = (float) $a;
+        $b = (float) $b;
+        return self::canonical(match ($op) {
+            '+' => $a + $b,
+            '-' => $a - $b,
+            '*' => $a * $b,
+            '/' => $a / $b,
+            '%' => fmod($a, $b), // sign of the dividend, like PHP's `%`
+            default => 0.0,
+        });
     }
 
-    private function intOf(bool|string $value): int
+    /**
+     * An operand as a PHP number: an integer when its text is a plain integer
+     * that fits the platform range, otherwise a float (so a huge integer text
+     * degrades to float precision instead of saturating silently).
+     */
+    private function numOf(bool|string $value): int|float
     {
         $s = self::toStr($value);
-        if (preg_match('/^[+-]?\d+$/', $s) !== 1) {
-            throw new \RuntimeException("arithmetic requires integer operands, got '$s'");
+        if (!self::isNumeric($s)) {
+            throw new \RuntimeException("arithmetic requires numeric operands, got '$s'");
         }
-        return (int) $s;
+        if (!str_contains($s, '.') && self::intInRange($s)) {
+            return (int) $s;
+        }
+        return (float) $s;
+    }
+
+    /**
+     * The text form of an arithmetic result — the output contract, whatever
+     * the engine: no exponent, at most 10 decimals (rounded half up at the
+     * 10th), no trailing zeros or trailing dot, `-0` folded to `0`, so a
+     * whole result is spelled as an integer (`0.15 * 100` → `15`). A
+     * non-finite float (overflow) is a loud error.
+     */
+    public static function canonical(int|float $n): string
+    {
+        if (is_int($n)) {
+            return (string) $n;
+        }
+        if (!is_finite($n)) {
+            throw new \RuntimeException('arithmetic result is out of range');
+        }
+        $s = rtrim(rtrim(number_format($n, 10, '.', ''), '0'), '.');
+        return $s === '-0' ? '0' : $s;
     }
 
     /** A boolean textualizes as a Number: true → '1', false → '0'. */
