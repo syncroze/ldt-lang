@@ -5,7 +5,7 @@ Complete file listing for ldt-lang, with a one-line description of each.
 ## Root
 
 - [`README.md`](README.md) — intro/tagline plus a link to the full documentation site.
-- [`CLAUDE.md`](CLAUDE.md) — working rules and project cheat sheet for Claude sessions (auto-loads when working in this repo).
+- `.cxtify.json` — cxtify link (topic `syncroze-ldt-lang`); the project context itself lives on the cxtify server and is git-ignored under `.cxtify/`.
 - [`TASKS.md`](TASKS.md) — task/audit log: numbered work batches, audit surface map, deferred items.
 - [`HISTORY.md`](HISTORY.md) — full design/decision log: rationale for major choices, alternatives considered and rejected, chronological audit-round writeups.
 - [`FILES.md`](FILES.md) — this file.

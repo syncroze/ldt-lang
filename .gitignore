@@ -1,1 +1,7 @@
 .idea/
+
+# cxtify
+.cxtify/
+
+# Local scratch (drafts, notes) — never committed
+_local/
